@@ -46,7 +46,7 @@ const POI[] pointsOfInterest = POI[] (
 void mainImage(out vec4 outRGBA, in vec2 XY)
 {
   float smallWay = min(iResolution.x, iResolution.y);
-  vec2 UV = (XY * 2.0 - fv2_1 * iResolution.xy)/smallWay;
+  vec2 uv = (XY * 2.0 - fv2_1 * iResolution.xy)/smallWay;
 
   float t = iTime * 0.1;
 
@@ -60,12 +60,16 @@ void mainImage(out vec4 outRGBA, in vec2 XY)
     mix(poi1.range  , poi2.range  , mixAmt),
     mix(poi1.maxIter, poi2.maxIter, mixAmt));
 
-  vec2 C = UV * poi.range + poi.center;
+  vec2 C = uv * poi.range + poi.center;
   float f = mandelEscapeIters(C, poi.maxIter) / poi.maxIter;
   f = pow(f, 1.0/3.0);
   vec3 rgb = vec3(f);
 
+
   rgb *= 1.0 - 0.1 * smoothstep(3.0/smallWay, 0.0, abs(f - 1.0));
+
+  rgb += texture(iChannel0, XY/iResolution.xy).rgb * 0.1;
+  rgb /= 1.1;
 
   outRGBA = vec4(rgb, f);
 }
