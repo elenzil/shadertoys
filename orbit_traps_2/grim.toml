@@ -8,7 +8,7 @@ clear     = [0.0, 0.0, 0.0, 1.0]
 draw      = {mode = "triangles", count = 1}
 vertex    = "./fullscreen_triangle.glsl"
 fragment  = "./buffer-a.glsl"
-iChannel0  = {resource = "buffer-a", filter="linear", wrap="clamp"}
+iChannel0  = {resource = "buffer-a", filter="linear", wrap="repeat"}
 
 [[pass]]
 clear     = [0.0, 0.0, 0.0, 1.0]
