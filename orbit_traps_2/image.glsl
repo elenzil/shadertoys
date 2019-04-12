@@ -68,7 +68,7 @@ void mainImage(out vec4 outRGBA, in vec2 XY)
 
   rgb *= 1.0 - 0.1 * smoothstep(3.0/smallWay, 0.0, abs(f - 1.0));
 
-  rgb += texture(iChannel0, XY/iResolution.xy).rgb * 0.1;
+  rgb += texture(iChannel0, XY/iResolution.xy).rgb * 0.91;
   rgb /= 1.1;
 
   outRGBA = vec4(rgb, f);
