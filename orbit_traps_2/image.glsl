@@ -33,15 +33,15 @@ float mandelEscapeIters(in vec2 C, in float maxIters) {
 }
 
 const POI[] pointsOfInterest = POI[] (
-    // the main image
-    POI(vec2(-0.75    ,  0.0      ), 1.4     ,  200.0),
+  // the main image
+  POI(vec2(-0.75    ,  0.0      ), 1.4     ,  200.0),
 
-    // Spirals from Paul Bourke http://paulbourke.net/fractals/mandelbrot
-    POI(vec2(-0.761571, -0.084756),  0.000012, 2000.0),
+  // Spirals from Paul Bourke http://paulbourke.net/fractals/mandelbrot
+  POI(vec2(-0.761571, -0.084756),  0.000012, 2000.0),
 
-    // nowhere special
-    POI(vec2(-1.4076  , -0.1277   ), 0.00014 , 3000.0)
-  );
+  // nowhere special
+  POI(vec2(-1.4076  , -0.1277   ), 0.00014 , 3000.0)
+);
 
 void mainImage(out vec4 outRGBA, in vec2 XY)
 {
