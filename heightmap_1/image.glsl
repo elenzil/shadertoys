@@ -12,9 +12,12 @@ const float PI      = 3.14159265359;
 const float TAU     = PI * 2.0;
 
 // less common
-const float camZoom    = 1.0;
-const float rmMaxSteps = 50.0;
-const float rmEpsilon  = 0.01;
+const float camZoom    =   1.0;
+const float rmMaxSteps =  60.0;
+const float rmMaxDist  = 180.0;
+const float rmEpsilon  =   0.01;
+const float grEpsilon  =   0.01;
+#define SMOOTH_MANDEL 1
 
 vec2 complexMul(in vec2 A, in vec2 B) {
   return vec2((A.x * B.x) - (A.y * B.y), (A.x * B.y) + (A.y * B.x));
@@ -29,18 +32,37 @@ vec4 poiToVec4(in POI poi) {return vec4(poi.center, poi.range, poi.maxIter);}
 POI vec4ToPOI(in vec4 v) {return POI(v.xy, v.z, v.w);}
 
 
-
-
-
 float mandelEscapeIters(in vec2 C, in float maxIters) {
   vec2 Z = C;
-  for (float n = 0; n < maxIters; n += 1.0) {
+  for (float n = 0.0; n < maxIters; n += 1.0) {
     Z  = complexMul(Z, Z) + C;
     if (dot(Z, Z) > 4.0) {
       return n;
     }
   }
   return maxIters;
+}
+
+// adapted from IQ
+// http://iquilezles.org/www/articles/distancefractals/distancefractals.htm
+float mandelDist(in vec2 c, float numIters)
+{
+  vec2  z = vec2(0.0, 0.0);
+  vec2 dz = vec2(0.0, 0.0);
+  
+  float m2;
+  for (float n = 0.0; n < numIters; ++n) {
+    dz = 2.0 * complexMul(z, dz) + fv2_x;
+    z  = complexMul(z, z) + c;
+
+    m2 = dot(z, z);
+    if (m2 > 1.0e10) {
+      break;
+    }
+  }
+  
+  // distance estimation: G/|G'|
+  return sqrt(m2 / dot(dz, dz)) * 0.5 * log(m2);
 }
 
 // based on https://www.shadertoy.com/view/Wtf3Df
@@ -58,48 +80,115 @@ mat2 rot2(float t) {
   return mat2(s, c, -c, s);
 }
 
-float sdf(vec3 p) {
-  float mi = 10.0;
-  vec2 mp = p.xz;
-  mp.x += 0.25;
-  mp *= rot2(iTime * -1.2);
-  mp *= 0.1;
-  mp.x -= 0.25;  
-  float iters = mandelEscapeIters(mp, mi);
-
-  return p.y - iters/mi * 5.0 + sin(p.x * 0.1 + iTime) * 2.0;
+float sdfCircle2D(in vec2 p, in vec2 c, float r) {
+  return length(p - c) - r;
 }
 
-vec3 march(in vec3 p, in vec3 rd, out float numSteps) {
-  for (float numSteps = 0.0; numSteps < rmMaxSteps; ++numSteps) {
-    float d = sdf(p);
-    if (d < rmEpsilon) {
+float sdf(in vec3 p, out float bright) {
+  float mi = 60.0;
+  vec2 mp = p.xz;
+  mp.x += 0.35;
+  mp *= rot2(iTime * -0.2);
+  mp *= 0.05;
+  mp.x -= 0.25;  
+  bright = 1.0;
+  #if SMOOTH_MANDEL
+  float iters        = mandelDist(mp, mi);
+  bright = smoothstep(-0.001, 0.001, iters);
+  iters = max(0.0, iters);
+  iters = 1.0 / (iters + 0.1);
+  float mandelHeight = 0.4 * mi;
+  #else
+  float iters        = mandelEscapeIters(mp, mi);
+  float mandelHeight =  2.0;
+  #endif
+
+  // altitude above plane
+  float dist = p.y;
+
+  // some waves
+  dist += sin(p.x * 0.1 + iTime) * 2.0;
+
+  // the mandelbrot set
+  dist -= iters/mi * mandelHeight;
+
+  // a column
+  /*
+  float distToColumn = sdfCircle2D(p.xz, vec2(0.0), 5.0);
+  if (dist < 5.0) {
+    dist = min(dist, distToColumn);
+  }
+  else if (distToColumn < 0.0) {
+    dist -= 5.0;
+  }
+  */
+
+  return dist;
+}
+
+// from http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions
+vec3 estimateNormal(vec3 p) {
+  const float e = grEpsilon;
+  float unused;
+  return normalize(vec3(
+    sdf(vec3(p.x + e, p.y    , p.z     ), unused) - sdf(vec3(p.x - e, p.y    , p.z    ), unused),
+    sdf(vec3(p.x    , p.y + e, p.z     ), unused) - sdf(vec3(p.x    , p.y - e, p.z    ), unused),
+    sdf(vec3(p.x    , p.y    , p.z  + e), unused) - sdf(vec3(p.x    , p.y    , p.z - e), unused)
+  ));
+}
+
+
+vec3 march(in vec3 p, in vec3 rd, out float numSteps, out float bright) {
+  float distTotal = 0.0;
+  for (numSteps = 0.0; numSteps < rmMaxSteps; ++numSteps) {
+    float d = sdf(p, bright);
+    if ((d < rmEpsilon) || (distTotal > rmMaxDist)) {
       return p;
     }
     p += rd * d;
+    distTotal += d;
   }
   return p;
 }
 
 void mainImage(out vec4 RGBA, in vec2 XY)
 {
+  RGBA.a   = 1.0;
+
   float smallWay = min(iResolution.x, iResolution.y);
   vec2  uv = (XY * 2.0 - fv2_1 * iResolution.xy)/smallWay;
   float t  = iTime * TAU * 0.01;
-  vec3  ro = vec3( vec2(cos(t), sin(t)) * 20.0, 20.0).xzy;
+  vec3  ro = vec3( vec2(cos(t), sin(t)) * 20.0, 10.0).xzy;
   vec3  la = vec3( 0.0, 0.0,  0.0);
   vec3  rd = getRayDirection(ro, la, uv);
 
   float numSteps;
-  vec3 surf = march(ro, rd, numSteps);
+  float sdfBright;
+  vec3 surf = march(ro, rd, numSteps, sdfBright);
   float dist = length(ro - surf);
 
-  const float checkSize = 10.0;
-  float bright = float((mod(surf.x, checkSize * 2.0) > checkSize) ^^ (mod(surf.z, checkSize * 2.0) > checkSize));
-  bright = mix(bright, 0.5, clamp(0.0, 1.0, dist/180.0 + 0.1));
+  const float checkSize = 20.0;
+ // float bright = float((mod(surf.x, checkSize * 2.0) > checkSize) ^^ (mod(surf.z, checkSize * 2.0) > checkSize));
+ float bright = 1.0;
+  bright = bright * 0.05 + 0.95;
+ // bright = 0.95;
 
-  RGBA.rgb = vec3(bright);
-  RGBA.a   = 1.0;
+  // shading
+  bright *= max(0.3, dot(fv3_x, estimateNormal(surf)));
+
+  vec3 rgb = vec3(bright);
+
+  rgb.rg *= sdfBright * 0.7 + 0.3;
+  rgb.b  *= sdfBright * 0.3 + 0.7;
+
+
+  // fog
+  rgb = mix(rgb, vec3(0.5), clamp(0.0, 1.0, dist/rmMaxDist + 0.1));
+
+  RGBA.rgb = rgb;
+
+  // expense
+//  RGBA.r += numSteps / rmMaxSteps;
 }
 
 
