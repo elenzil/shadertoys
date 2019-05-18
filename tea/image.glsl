@@ -71,7 +71,11 @@ float sdfScene(in vec3 p) {
     dist = max(-cutPlane, dist);
 
     // ground
-    dist = min(dist, sdfGround(p, 0.0));
+    float ground = sdfGround(p, 0.0);
+    // dimples
+    float dimples = sdfSphere(mod(p + vec3(0.0, 1.0, 0.0), vec3(10.0)), vec3(5.0, 5.0, 5.0), 4.5);
+    ground = max(-dimples, ground);
+    dist = min(dist, ground);
 
     return dist;
 }
