@@ -1,6 +1,7 @@
 /*
     orion elenzil 2019
     first marcher with shadows.
+    https://www.shadertoy.com/view/WtB3RR
 
     click on the far right to show the marching steps.
 
