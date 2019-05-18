@@ -12,11 +12,10 @@ const float PI      = 3.14159265359;
 const float TAU     = PI * 2.0;
 
 // less common
-const float camZoom    =   1.0;
-const float rmMaxSteps =  60.0;
+const float rmMaxSteps = 100.0;
 const float rmMaxDist  = 180.0;
-const float rmEpsilon  =   0.01;
-const float grEpsilon  =   0.01;
+const float rmEpsilon  =   0.001;
+const float grEpsilon  =   0.001;
 #define SMOOTH_MANDEL 1
 
 vec2 complexMul(in vec2 A, in vec2 B) {
@@ -66,11 +65,11 @@ float mandelDist(in vec2 c, float numIters)
 }
 
 // based on https://www.shadertoy.com/view/Wtf3Df
-vec3 getRayDirection(in vec3 ro, in vec3 lookAt, in vec2 uv) {
+vec3 getRayDirection(in vec3 ro, in vec3 lookAt, in vec2 uv, float zoom) {
   vec3 ol       = normalize(lookAt - ro);
   vec3 screenRt = cross(ol      , fv3_y); // world Up
   vec3 screenUp = cross(screenRt, ol   );
-  vec3 rd       = normalize(uv.x * screenRt + uv.y * screenUp + ol * camZoom);
+  vec3 rd       = normalize(uv.x * screenRt + uv.y * screenUp + ol * zoom);
   return rd;
 }
 
@@ -85,7 +84,7 @@ float sdfCircle2D(in vec2 p, in vec2 c, float r) {
 }
 
 float sdf(in vec3 p, out float bright) {
-  float mi = 60.0;
+  float mi = 20.0;
   vec2 mp = p.xz;
   mp.x += 0.35;
   mp *= rot2(iTime * -0.2);
@@ -112,15 +111,14 @@ float sdf(in vec3 p, out float bright) {
   // the mandelbrot set
   dist -= iters/mi * mandelHeight;
 
-  // a column
   /*
-  float distToColumn = sdfCircle2D(p.xz, vec2(0.0), 5.0);
-  if (dist < 5.0) {
-    dist = min(dist, distToColumn);
-  }
-  else if (distToColumn < 0.0) {
-    dist -= 5.0;
-  }
+  // some pillars
+  const float pillarDist = 60.0;
+  const float pillarRad  = 10.0;
+  dist = min(dist, sdfCircle2D(p.xz, pillarDist * vec2(-1.0, -1.0), pillarRad));
+  dist = min(dist, sdfCircle2D(p.xz, pillarDist * vec2(-1.0,  1.0), pillarRad));
+  dist = min(dist, sdfCircle2D(p.xz, pillarDist * vec2( 1.0,  1.0), pillarRad));
+  dist = min(dist, sdfCircle2D(p.xz, pillarDist * vec2( 1.0, -1.0), pillarRad));
   */
 
   return dist;
@@ -158,9 +156,10 @@ void mainImage(out vec4 RGBA, in vec2 XY)
   float smallWay = min(iResolution.x, iResolution.y);
   vec2  uv = (XY * 2.0 - fv2_1 * iResolution.xy)/smallWay;
   float t  = iTime * TAU * 0.01;
-  vec3  ro = vec3( vec2(cos(t), sin(t)) * 20.0, 10.0).xzy;
+  vec3  ro = vec3( vec2(cos(t), sin(t)) * 40.0, 10.0).xzy;
   vec3  la = vec3( 0.0, 0.0,  0.0);
-  vec3  rd = getRayDirection(ro, la, uv);
+  const float zoom = 3.2;
+  vec3  rd = getRayDirection(ro, la, uv, zoom);
 
   float numSteps;
   float sdfBright;
@@ -168,8 +167,8 @@ void mainImage(out vec4 RGBA, in vec2 XY)
   float dist = length(ro - surf);
 
   const float checkSize = 20.0;
- // float bright = float((mod(surf.x, checkSize * 2.0) > checkSize) ^^ (mod(surf.z, checkSize * 2.0) > checkSize));
- float bright = 1.0;
+  // float bright = float((mod(surf.x, checkSize * 2.0) > checkSize) ^^ (mod(surf.z, checkSize * 2.0) > checkSize));
+  float bright = 1.0;
   bright = bright * 0.05 + 0.95;
  // bright = 0.95;
 
@@ -183,12 +182,17 @@ void mainImage(out vec4 RGBA, in vec2 XY)
 
 
   // fog
-  rgb = mix(rgb, vec3(0.5), clamp(0.0, 1.0, dist/rmMaxDist + 0.1));
+  rgb *= 1.0 + surf.y * 0.2 - 0.5;
+  rgb = mix(rgb, vec3(0.5), clamp(0.0, 1.0, dist/rmMaxDist - 0.1));
+
+  // gamma
+  rgb = pow(rgb, vec3(0.4545));
+  
+  // ray steps
+  // RGBA.r += numSteps / rmMaxSteps;
 
   RGBA.rgb = rgb;
 
-  // expense
-//  RGBA.r += numSteps / rmMaxSteps;
 }
 
 
