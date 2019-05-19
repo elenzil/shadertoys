@@ -183,7 +183,7 @@ void mainImage(out vec4 RGBA, in vec2 XY)
 
   // fog
   rgb *= 1.0 + surf.y * 0.2 - 0.5;
-  rgb = mix(rgb, vec3(0.5), clamp(0.0, 1.0, dist/rmMaxDist - 0.1));
+  rgb = mix(rgb, vec3(0.5), clamp(dist/rmMaxDist - 0.1, 0.0, 1.0));
 
   // gamma
   rgb = pow(rgb, vec3(0.4545));
