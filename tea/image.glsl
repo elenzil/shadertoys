@@ -111,8 +111,9 @@ void mainImage(out vec4 RGBA, in vec2 XY)
     float t  = iTime * TAU / 100.0;
 
     float mouseAlt = iMouse.y < 1.0 ? 0.0 : iMouse.y / iResolution.y * 2.0 - 1.0;
+    float mouseAng = iMouse.x * TAU / iResolution.x;
 
-    vec3  ro = vec3(vec2(cos(t), sin(t)) * 13.0, 7.0 + mouseAlt * 5.0).xzy;
+    vec3  ro = vec3(vec2(cos(t + mouseAng), sin(t + mouseAng)) * 13.0, 7.0 + mouseAlt * -5.0).xzy;
     vec3  lt = vec3(0.0, 1.0, 0.0);
     float zm = 4.0;
     vec3  rd = rayDir(uv, ro, lt, fv3_y, zm);
@@ -156,14 +157,16 @@ void mainImage(out vec4 RGBA, in vec2 XY)
     vec3  fogClr = vec3(0.0, 0.07, 0.2);
     rgb = mix(rgb, fogClr, fogAmt);
 
+    // "heatmap" of number of marching steps
+    if (iMouse.z > iResolution.x * 0.9) {
+        rgb   *= 0.15;
+        rgb.r += (steps)/2.0/rmMaxSteps * 0.85;
+    }
+
     // gamma
     rgb = pow(rgb, vec3(0.4545));
 
 
-    if (iMouse.z > iResolution.x * 0.9) {
-        rgb   *= 0.5;
-        rgb.r += (steps)/2.0/rmMaxSteps * 0.75;
-    }
 
     RGBA.rgb = rgb;
 }
