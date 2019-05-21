@@ -67,7 +67,7 @@ float sdfScene(in vec3 p) {
     dist = min(dist, sdfSphere(vec3(abs(p.x), p.y, abs(p.z)), vec3(sep, rad, sep), rad));
     
     // minus a wavy plane
-    float cutPlaneSize = (sin(t * 0.72 - PI/2.0) * 0.51 + 0.5) * rad * 2.4;
+    float cutPlaneSize = (sin(t * 0.72 - PI/2.0) * 0.51 + 0.5) * rad * 2.5;
     float cutPlaneDisp = (sin(p.x * 4.0) + sin(p.z * 4.0)) * 0.1;
     cutPlaneDisp += sin(length(p.xz) * 20.0 - t * 20.0) * 0.015;
     float cutPlane = max((p.y + cutPlaneDisp) - rad - cutPlaneSize * 0.5, -(p.y + cutPlaneDisp) + rad - cutPlaneSize * 0.5);    
@@ -116,8 +116,10 @@ void mainImage(out vec4 RGBA, in vec2 XY)
     float mouseAlt = iMouse.y < 1.0 ? 0.0 : iMouse.y / iResolution.y * 2.0 - 1.0;
     float mouseAng = iMouse.x * TAU / iResolution.x;
 
-    float softShadowWidth = (iMouse.z < 0.5 || iMouse.z > gutterWidth) ? 0.2 :
-        max(0.0, iMouse.y / iResolution.y * 1.0);
+    float leftMouseY = texelFetch(iChannel0, ivec2(0), 0).r;
+
+
+    float softShadowWidth = max(0.0, leftMouseY / iResolution.y * 1.0);
 
     vec3  ro = vec3(vec2(cos(t + mouseAng), sin(t + mouseAng)) * 13.0, 7.0 + mouseAlt * -5.0).xzy;
     vec3  lt = vec3(0.0, 1.0, 0.0);
@@ -150,9 +152,9 @@ void mainImage(out vec4 RGBA, in vec2 XY)
         vec3  startPnt = hitPoint + normal * backAway;
         // use finer stepsize when marching for shadows,
         // also reduced horizon distance.
-        march(startPnt, -lgtDir, 0.3, rmMaxDistShd, hitDist2, steps2, minDist2);
-        float shadowAmt = float(hitDist2 > rmMaxDistShd * 0.9);
-        if (true /*softShadows*/) {
+        march(startPnt, -lgtDir, 0.5, rmMaxDistShd, hitDist2, steps2, minDist2);
+        float shadowAmt = float(hitDist2 > rmMaxDistShd * 0.96);
+        if (softShadowWidth > 0.09) {
             shadowAmt *= smoothstep(0.0, softShadowWidth, minDist2);
         }
         shadowAmt = shadowAmt * 0.9 + 0.1;
