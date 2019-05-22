@@ -1,5 +1,10 @@
+// orion elenzil 20190521
+// inspired by https://www.shadertoy.com/view/wtfGWS
+
 const float PI        = 3.14159265359;
-const float TAU     = PI * 2.0;
+const float TAU       = PI * 2.0;
+
+#define AA 2.0
 
 vec2 complexMul(in vec2 A, in vec2 B) {
     return vec2((A.x * B.x) - (A.y * B.y), (A.x * B.y) + (A.y * B.x));
@@ -13,6 +18,7 @@ vec3 hsv2rgb(in vec3 c) {
 }
 
 
+// point of interest
 struct POI {
     vec2    center;
     float range;
@@ -20,13 +26,15 @@ struct POI {
 };
 
 
-float mandelEscapeIters(in vec2 C, in float maxIter, in float homeRadius, out float cycleLength1, out float cycleLength2) {
+float mandelEscapeIters(in vec2 C, in float maxIter, in vec2 ocOff, out float cycleLength1, out float cycleLength2) {
     vec2 Z = C;
     vec2 orbitCenter1 = 0.3 * vec2(cos(iTime * 1.00), sin(iTime * 1.00));
     vec2 orbitCenter2 = orbitCenter1 / 0.3 * 0.2;
+    orbitCenter1 += ocOff;
+    orbitCenter2 += ocOff;
     cycleLength1 = 0.0;
     cycleLength2 = 0.0;
-    for (float n = 0; n < maxIter; n += 1.0) {
+    for (float n = 0.0; n < maxIter; ++n) {
         Z    = complexMul(Z, Z) + C;
         if (cycleLength1 == 0.0 && abs(1.0 - length(Z - orbitCenter1)) < 0.015) {
             cycleLength1 = n;
@@ -48,35 +56,50 @@ void mainImage(out vec4 RGBA, in vec2 XY)
     vec2 uv = (XY * 2.0 - iResolution.xy)/smallWay;
     float t = iTime * TAU / 5.0;
 
-    const POI poi1 = POI(vec2(-.7105, 0.2466), 0.04, 200.0);
-    const POI poi2 = POI(vec2(-.600, 0.0000), 0.900, 50.0);
+    vec2 ocOff = vec2(0.0);
+    if (any(greaterThan(iMouse.xy, vec2(50.0)))) {
+        ocOff = (iMouse.xy * 2.0 - iResolution.xy)/smallWay;
+    }
+
+    const POI poi1 = POI(vec2(-.7105, 0.2466), 0.04, 90.0);
+    const POI poi2 = POI(vec2(-.600, 0.0000), 1.200, 70.0);
     const POI poi  = poi2;
 
     float rng = poi.range;// * (1.0 + sin(t) * 0.1);
     
-    vec2  C   = uv * rng + poi.center;
     float cycleLength1;
     float cycleLength2;
-    float escapeIters = mandelEscapeIters(C, poi.maxIter, poi.range * 0.2, cycleLength1, cycleLength2);
-    float f   =  escapeIters / poi.maxIter;
-    if (escapeIters == poi.maxIter) {
-        f = 0.0;
-    }
-    f = pow(f, 0.6);
-    f *= 0.82;
 
-    vec3 rgb  = vec3(f);
+    vec3 col = vec3(0.0);
 
-    if (cycleLength1 > 0.0) {
-        const float spectrumSamples = 20.0;
-        rgb += vec3(sin(cycleLength1 / spectrumSamples * TAU) * 0.2 + 0.4);
-    }
-    if (cycleLength2 > 0.0) {
-        const float spectrumSamples = 30.0;
-        rgb += hsv2rgb(vec3(mod(cycleLength2,  spectrumSamples) / spectrumSamples, 0.9, 0.8));
-    }
+    for( float m = 0.0; m < AA; ++m) {
+    for( float n = 0.0; n < AA; ++n) {
+        vec2  C   = (uv + vec2(m, n) / (AA * smallWay)) * rng + poi.center;
+        float escapeIters = mandelEscapeIters(C, poi.maxIter, ocOff, cycleLength1, cycleLength2);
+        float f   =  escapeIters / poi.maxIter;
+        if (escapeIters == poi.maxIter) {
+            f = 0.0;
+        }
+        f = pow(f, 0.6);
+        f *= 0.82;
 
-    RGBA.rgb = rgb;
+        vec3 rgb  = vec3(f * 0.2, f * 0.6, f * 1.0);
+
+        if (cycleLength1 > 0.0) {
+            const float spectrumSamples = 20.0;
+            rgb += vec3(cos(cycleLength1 / spectrumSamples * TAU) * 0.2 + 0.3);
+        }
+        if (cycleLength2 > 0.0) {
+            const float spectrumSamples = 30.0;
+            rgb += hsv2rgb(vec3(mod(cycleLength2,  spectrumSamples) / spectrumSamples, 0.9, 0.8));
+        }
+
+        col += rgb;
+    }}
+
+    col /= (AA * AA);
+
+    RGBA.rgb = col;
 }
 
 // grimoire bindings
