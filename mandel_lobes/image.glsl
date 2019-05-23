@@ -6,6 +6,8 @@ const float TAU       = PI * 2.0;
 
 #define AA 2.0
 
+// todo 1: rewrite as mat2(A,-A.y,A.x) * B.
+// todo 2: replace with complexSqr(A).
 vec2 complexMul(in vec2 A, in vec2 B) {
     return vec2((A.x * B.x) - (A.y * B.y), (A.x * B.y) + (A.y * B.x));
 }
@@ -91,7 +93,7 @@ void mainImage(out vec4 RGBA, in vec2 XY)
         }
         if (cycleLength2 > 0.0) {
             const float spectrumSamples = 30.0;
-            rgb += hsv2rgb(vec3(mod(cycleLength2,  spectrumSamples) / spectrumSamples, 0.9, 0.8));
+            rgb += hsv2rgb(vec3(fract(cycleLength2/ spectrumSamples), 0.9, 0.8));
         }
 
         col += rgb;
