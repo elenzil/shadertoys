@@ -7,9 +7,8 @@ const float TAU       = PI * 2.0;
 const float gViewPrt  =  6.0;
 const vec2  gViewPrtC =  vec2(0.0);
 const float gLineW    =  6.0;
-const float gEpsGrad  =  0.01;
+const float gEpsGrad  =  0.001;
 /***/ float gEpsCurv  =  0.5;
-const float gMagic    = 50.0;
 
 // #define AA 2.0
 
@@ -32,10 +31,14 @@ float sdfScene(in vec2 p) {
 }
 
 vec2 sdfGradient(in vec2 p) {
-    return vec2(
+    vec2 ret = vec2(
         sdfScene(vec2(p.x - gEpsGrad, p.y)) - sdfScene(vec2(p.x + gEpsGrad, p.y)),
         sdfScene(vec2(p.x, p.y - gEpsGrad)) - sdfScene(vec2(p.x, p.y + gEpsGrad))
     );
+
+    ret /= gEpsGrad;
+
+    return ret;
 }
 
 void sdfInfo(in vec2 p, out float sdfDist, out vec2 sdfGrad, out float sdfCurv) {
@@ -50,9 +53,13 @@ void sdfInfo(in vec2 p, out float sdfDist, out vec2 sdfGrad, out float sdfCurv) 
     float tanDistB = sdfScene(p - sdfTngt * gEpsCurv);
     float tanDist  = (tanDistA + tanDistB) / 2.0;
 
-    // division by epsilon^2 to normalize w/r/t epsilong.
+    // to normalize curvature w/r/t gEpsCurv,
+    // divide by gEpsCurv ^ 2 here.
+    // however, for the purposes of beveling we don't want that.
+    // it also makes the math more stable.
     // this was arrived at empirically, not mathematically.
-    /**/ sdfCurv   = (tanDist - sdfDist) / max(0.00001, (gEpsCurv * gEpsCurv));
+    //    sdfCurv  = (tanDist - sdfDist) / max(0.00001, (gEpsCurv * gEpsCurv));
+    /**/  sdfCurv  = (tanDist - sdfDist);
 }
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
@@ -69,8 +76,13 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     float curv;
     sdfInfo(uv, dist, grad, curv);
 
-    float magicNumber = 50.0 * gEpsCurv * gEpsCurv;
-    dist += length(grad) * curv * magicNumber;
+    float distOrig = dist;
+
+    // bevel is done by backing the surface off
+    // by the length of the gradient times the curvature.
+    // i'm not sure where the factor of 1/2 belongs:
+    // here, curvature, gradient ?
+    dist += curv * length(grad) / 2.0;
 
     float fCrvN  = max(0.0, -curv);
     float fCrvP  = max(0.0,  curv);
