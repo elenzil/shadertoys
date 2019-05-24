@@ -30,8 +30,8 @@ struct POI {
 
 float mandelEscapeIters(in vec2 C, in float maxIter, in vec2 ocOff, out float cycleLength1, out float cycleLength2) {
     vec2 Z = C;
-    vec2 orbitCenter1 = 0.3 * vec2(cos(iTime * 1.00), sin(iTime * 1.00));
-    vec2 orbitCenter2 = orbitCenter1 / 0.3 * 0.2;
+    vec2 orbitCenter1 = C + 0.30 * vec2(cos(iTime * 1.30), sin(iTime * 1.00));
+    vec2 orbitCenter2 = C + (sin(iTime * 0.2) * 0.1 + 0.1) * vec2(cos(iTime * 2.30), sin(iTime * 2.30));
     orbitCenter1 += ocOff;
     orbitCenter2 += ocOff;
     cycleLength1 = 0.0;
@@ -41,7 +41,7 @@ float mandelEscapeIters(in vec2 C, in float maxIter, in vec2 ocOff, out float cy
         if (cycleLength1 == 0.0 && abs(1.0 - length(Z - orbitCenter1)) < 0.015) {
             cycleLength1 = n;
         }
-        if (cycleLength2 == 0.0 && abs(0.2 - length(Z - orbitCenter2)) < 0.01) {
+        if (cycleLength2 == 0.0 && abs(sin(iTime * 0.1) * 0.05 + 0.055 - length(Z - orbitCenter2)) < 0.02) {
             cycleLength2 = n;
         }
         if (dot(Z, Z) > 4.0) {
