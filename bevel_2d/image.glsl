@@ -6,7 +6,7 @@ const float TAU       = PI * 2.0;
 // const vec2  gViewPrtC =  vec2(-2.0, -3.5);
 const float gViewPrt  =  6.0;
 const vec2  gViewPrtC =  vec2(0.0);
-const float gLineW    =  6.0;
+const float gLineW    =  3.0;
 const float gEpsGrad  =  0.001;
 /***/ float gEpsCurv  =  0.5;
 
@@ -23,9 +23,12 @@ float sdfRect(in vec2 p, in vec2 r) {
 float sdfScene(in vec2 p) {
     float ret = 1e20;
 
-    ret = min( sdfRect(p, vec2(2.00, 5.00)), ret);
-    ret = min( sdfRect(p, vec2(5.00, 2.00)), ret);
-    ret = max(-sdfRect(p, vec2(1.55, 1.55)), ret);
+    ret = min( sdfRect(p, vec2(1.05, 5.00)), ret);
+
+    float theta = iTime * 0.1;
+    mat2 rot = mat2(sin(theta), cos(theta), -cos(theta), sin(theta));
+    ret = min( sdfRect(p * rot, vec2(5.50, 1.05)), ret);
+    ret = max(-sdfRect(p, vec2(6.0, 0.5)), ret);
 
     return ret;
 }
@@ -69,7 +72,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     uv += gViewPrtC;
     float t  = iTime * TAU / 5.0;
 
-    gEpsCurv = mix(0.00, 1.5, cos(t + PI) * 0.5 + 0.5);
+    gEpsCurv = mix(0.00, 1.0, cos(t + PI) * 0.5 + 0.5);
 
     float dist;
     vec2  grad;
@@ -84,13 +87,16 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     // here, curvature, gradient ?
     dist += curv * length(grad) / 2.0;
 
-    float fCrvN  = max(0.0, -curv);
-    float fCrvP  = max(0.0,  curv);
-    float fSdf   = sin(dist * 10.0) * 0.2 + 0.2;
+    float fCrvN  = 0.0 * max(0.0, -curv);
+    float fCrvP  = 0.0 * max(0.0,  curv);
+    float fSdf   = sin(dist * 10.0) * 0.4 + 0.4;
 
     vec3 rgb = vec3(fCrvN, fCrvP, fSdf);
 
-    rgb += vec3(1.0) * smoothstep(gLineW, gLineW - 1.5, abs(dist) * sf);
+
+    rgb.rg  += vec2(0.3) * smoothstep(0.1, -0.2, dist);
+    rgb     += vec3(0.2) * smoothstep(gLineW, gLineW - 1.5, abs(distOrig) * sf);
+    rgb     += vec3(1.0) * smoothstep(gLineW, gLineW - 1.5, abs(dist    ) * sf);
 
     RGBA.rgb = rgb;
 }
