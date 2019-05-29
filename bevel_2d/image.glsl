@@ -20,7 +20,7 @@ float sdfRect(in vec2 p, in vec2 r) {
         + min(max(d.x, d.y), 0.0);
 }
 
-float sdfScene(in vec2 p) {
+float sdfScene1(in vec2 p) {
     float ret = 1e20;
 
     ret = min( sdfRect(p, vec2(1.05, 5.00)), ret);
@@ -28,9 +28,22 @@ float sdfScene(in vec2 p) {
     float theta = iTime * 0.1;
     mat2 rot = mat2(sin(theta), cos(theta), -cos(theta), sin(theta));
     ret = min( sdfRect(p * rot, vec2(5.50, 1.05)), ret);
-    ret = max(-sdfRect(p, vec2(6.0, 0.5)), ret);
 
     return ret;
+}
+
+float sdfScene2(in vec2 p) {
+    float ret = 1e20;
+
+    ret = min( sdfRect(p, vec2(1.05, 5.00)), ret);
+    ret = min( sdfRect(p, vec2(5.50, 1.05)), ret);
+
+    return ret;
+}
+
+float sdfScene(in vec2 p) {
+    float t = fract(iTime / 5.0);
+    return t > 0.5 ? sdfScene1(p) : sdfScene2(p);
 }
 
 vec2 sdfGradient(in vec2 p) {
@@ -89,13 +102,13 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     float fCrvN  = 0.0 * max(0.0, -curv);
     float fCrvP  = 0.0 * max(0.0,  curv);
-    float fSdf   = sin(dist * 10.0) * 0.4 + 0.4;
+    float fSdf   = sin(dist * 10.0) * 0.1 + 0.4;
 
     vec3 rgb = vec3(fCrvN, fCrvP, fSdf);
 
 
     rgb.rg  += vec2(0.3) * smoothstep(0.1, -0.2, dist);
-    rgb     += vec3(0.2) * smoothstep(gLineW, gLineW - 1.5, abs(distOrig) * sf);
+    rgb.rg  += vec2(0.5) * smoothstep(gLineW, gLineW - 1.5, abs(distOrig) * sf);
     rgb     += vec3(1.0) * smoothstep(gLineW, gLineW - 1.5, abs(dist    ) * sf);
 
     RGBA.rgb = rgb;

@@ -104,5 +104,6 @@ void mainImage(out vec4 RGBA, in vec2 XY)
     RGBA.rgb = col;
 }
 
-// grimoire bindings
+#ifdef GRIMOIRE
 out vec4 fragColor; void main() { mainImage(fragColor, gl_FragCoord.xy); }
+#endif
