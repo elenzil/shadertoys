@@ -20,7 +20,7 @@ float sf = 1.0;
 
 const float coinBorderPx = 4.0;
 
-const vec3  bg           = vec3(0.5, 0.55, 0.4);
+const vec3  bg           = vec3(0.5, 0.55, 0.4) * 0.6;
 const vec3  colCoinBody1 = vec3(0.8, 0.8, 0.7);
 const vec3  colCoinBody2 = vec3(0.8, 0.7, 0.8);
 const vec3  colCoinBody3 = vec3(0.7, 0.8, 0.8);
@@ -29,7 +29,8 @@ const vec3  colCoinEdge  = vec3(0.2, 0.1, 0.0);
 const vec3  colBoxBody   = vec3(0.5, 0.6, 0.8);
 const vec3  colBoxEdge   = vec3(0.0, 0.1, 0.3);
 
-const float thetaMax = 5.3 * DEG_TO_RAD;
+// empirically determined:
+const float thetaMax = DEG_TO_RAD * 5.3;
 
 float t    = 0.0;
 float tMax = 7.0;
@@ -91,7 +92,7 @@ void drawC1(inout vec3 rgb, in vec2 p, in mat2 rot, in float dxMod) {
 }
 void drawC2(inout vec3 rgb, in vec2 p, in mat2 rot, in float dxMod) {
     float dx = clamp(t - 1.0, 0.0, 1.0) * 0.5;
-    if (p.x < 0.0 || p.x > 1000.0 + dx) {
+    if (p.x < 0.0 || p.x > 1000.0) {
         return;
     }
     p.x = mod(p.x, 2.0 + dxMod);
@@ -119,7 +120,7 @@ void drawC3(inout vec3 rgb, in vec2 p, in mat2 rot, in float dxMod) {
 }
 void drawC4(inout vec3 rgb, in vec2 p, in mat2 rot, in float dxMod) {
     float dx = clamp(t - 1.0, 0.0, 1.0) * 0.5;
-    if (p.x < 0.5 || p.x > 1000.0 + dx) {
+    if (p.x < 0.5 || p.x > 1000.0) {
         return;
     }
     p.x = mod(p.x - dx, 2.0 + dxMod) + dx;
@@ -134,20 +135,25 @@ void drawC4(inout vec3 rgb, in vec2 p, in mat2 rot, in float dxMod) {
     drawC(rgb, p, c, colCoinBody4);
 }
 
-void mainImage(out vec4 RGBA, in vec2 XY) {
+void render(out vec4 RGBA, in vec2 XY, bool showLeft) {
     RGBA.a   = 1.0;
     t = abs(mod(iTime * 0.5 - tMax, tMax * 2.0) - tMax);
     #ifdef HIDE_SOLUTION
     t = 0.0;
     #endif
 
-    /**/  sf = gViewPort / iResolution.y;
-    sf = mix (sf, sf * 0.1, 2.0 * clamp(t - 4.5, 0.0, 0.5));
-
-    vec2  uv = (XY - iResolution.xy * vec2(0.0, 0.5)) * sf;
-
-    uv.x -= mix(0.25, iResolution.x * sf * 0.5 - 2.0, 2.0 * clamp(t - 4.5, 0.0, 0.5));
-    uv.y -= mix(0.0 , 0.5, 2.0 * clamp(t - 4.5, 0.0, 0.5));
+    vec2 uv;
+    /**/  sf = gViewPort / (iResolution.y * 0.5);
+    if (showLeft) {
+        sf    = mix (sf, sf * 0.1, 2.0 * clamp(t - 4.5, 0.0, 0.5));
+        uv    = (XY - iResolution.xy * vec2(0.0, 0.25)) * sf;
+        uv.x -= mix(0.25, iResolution.x * sf * 0.5 - 2.0, 2.0 * clamp(t - 4.5, 0.0, 0.5));
+        uv.y -= mix(0.0 , 0.5, 2.0 * clamp(t - 4.5, 0.0, 0.5));
+    }
+    else {
+        uv    = (XY - iResolution.xy * vec2(0.0, 0.25)) * sf;
+        uv.x += 1000.5 - iResolution.x * sf;
+    }
 
     vec3 rgb = bg;
 
@@ -165,10 +171,26 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     drawC3 (rgb, uv, rot, dxMod);
     drawC4 (rgb, uv, rot, dxMod);
 
-    rgb = pow(rgb, vec3(0.4545));
+    // fade out
+    if (showLeft) {
+        rgb = mix(rgb, bg, smoothstep(-3.0, 3.0, XY.x - iResolution.x + 50.0 - sin(XY.y * 0.03) * 20.0));
+    }
+    else {
+        rgb = mix(rgb, bg, smoothstep(-3.0, 3.0, -XY.x + 50.0 + sin(XY.y * 0.03) * 20.0));
+    }
 
-    RGBA.rgb = rgb;
+    RGBA.rgb = pow(rgb, vec3(0.4545));
 }
+
+void mainImage(out vec4 RGBA, in vec2 XY) {
+    if (XY.y > iResolution.y / 2.0) {
+        render(RGBA, XY + vec2(0.0, -iResolution.y / 2.0), true);
+    }
+    else {
+        render(RGBA, XY, false);
+    }
+}
+
 
 #ifdef GRIMOIRE
 out vec4 fragColor; void main() { mainImage(fragColor, gl_FragCoord.xy); }
