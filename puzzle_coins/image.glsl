@@ -1,15 +1,18 @@
-// orion elenzil 2019028
+// orion elenzil 20190528
 //
-// puzzle from mike plotz: https://hyponymo.us
+// coin-packing puzzle!
 //
 // you have a bunch of uniform coins
 // and a long skinny box.
 // the interior of the box is 2 coins wide,
 // 1000 coins long, and 1 coin-thickness tall.
 // how many whole coins can you fit in the box ?
+//
+// hold down the mouse button to see one solution.
+// i hear there's a better one, tho !
+//
+// puzzle from mike plotz: https://hyponymo.us
 
-// comment this line out to see the solution
-// #define HIDE_SOLUTION
 
 const float PI         =  3.14159265359;
 const float TAU        =  PI * 2.0;
@@ -29,8 +32,9 @@ const vec3  colCoinEdge  = vec3(0.2, 0.1, 0.0);
 const vec3  colBoxBody   = vec3(0.5, 0.6, 0.8);
 const vec3  colBoxEdge   = vec3(0.0, 0.1, 0.3);
 
-// empirically determined:
-const float thetaMax = DEG_TO_RAD * 5.3;
+// this analytic solution from Gabe Chang.
+// it comes out to 5.264 degrees, which is very close to my empirical 5.3 degrees.
+const float thetaMax = asin(1.0/sqrt(3.0)) - 30.0 * DEG_TO_RAD;
 
 float t    = 0.0;
 float tMax = 7.0;
@@ -95,6 +99,8 @@ float PrintInt(const in vec2 uv, const in float value )
 
     return res; 
 }
+// end of number-printing
+///////////////////////////////////////////////
 
 
 float theta(float time) {
@@ -198,10 +204,14 @@ void drawC4(inout vec3 rgb, in vec2 p, in mat2 rot, in float dxMod) {
 
 void render(out vec4 RGBA, in vec2 XY, bool showLeft) {
     RGBA.a   = 1.0;
-    t = abs(mod(iTime * 0.5 - tMax, tMax * 2.0) - tMax);
-    #ifdef HIDE_SOLUTION
+
     t = 0.0;
-    #endif
+    float mouseDownTime = texelFetch(iChannel0, ivec2(0, 0), 0).r;
+    if (mouseDownTime > 0.0) {
+        t = (iTime - mouseDownTime) / 2.0 + 1.0;
+    }
+
+    t = abs(mod(t - tMax, tMax * 2.0) - tMax);
 
     float vign = 1.0;
 
@@ -243,10 +253,10 @@ void render(out vec4 RGBA, in vec2 XY, bool showLeft) {
 
     // fade out
     if (showLeft) {
-        rgb = mix(rgb, bg, smoothstep(-3.0, 3.0, XY.x - iResolution.x + 30.0 - sin(XY.y * 50.0 / iResolution.y) * 1500.0 / iResolution.y));
+        rgb = mix(rgb, bg, smoothstep(-3.0, 3.0, XY.x - iResolution.x + 30.0 - sin(XY.y * 50.0 / iResolution.y) * 3.0 * iResolution.x / iResolution.y));
     }
     else {
-        rgb = mix(rgb, bg, smoothstep(-3.0, 3.0, -XY.x + 20.0 + sin(XY.y * 50.0 / iResolution.y) * 1500.0 / iResolution.y));
+        rgb = mix(rgb, bg, smoothstep(-3.0, 3.0, -XY.x + 20.0 + sin(XY.y * 50.0 / iResolution.y) * 3.0 * iResolution.x / iResolution.y));
     }
 
     RGBA.rgb = pow(rgb, vec3(0.4545));
