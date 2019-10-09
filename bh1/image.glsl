@@ -23,14 +23,16 @@ const float MAX_FLOAT = intBitsToFloat(0x7f7fffff);
 
 
 // less common
-const float rmMaxSteps = 400.0;
+const float rmMaxSteps = 150.0;
 const float rmMaxDist  = 150.0;
-const float rmEpsilon  =   0.001;
+const float rmEpsilon  =   0.01;
 const float grEpsilon  =   0.00001;
-const float nrmBackoff =   grEpsilon * 10.0;
+const float nrmBackoff =   grEpsilon * 100.0;
 
-const float shadowFac  = 0.1;           // 1.0 for no shadows, 0.0 for black.
-const vec3  clr_fog   = vec3(shadowFac);
+const float shadowFac  = 0.2;           // 1.0 for no shadows, 0.0 for black.
+const vec3  clr_fog   = vec3(0.0, 0.03, 0.05);
+
+#define SHOW_PIXEL_COST 0
 
 float gT = 0.0;
 
@@ -137,7 +139,7 @@ float sdf(in vec3 p, out int material) {
   d = max(d, -D);
   m = d == -D ? mat_3 : m;
 
-  D = sdfSphere(p,  sphRad * 0.2);
+  D = sdfSphere(p,  sphRad * 0.2  );
   d = min(d, D);
   m = d == D ? mat_4 : m;
 
@@ -189,7 +191,7 @@ void mainImage(out vec4 RGBA, in vec2 XY)
     float smallWay = min(iResolution.x, iResolution.y);
     vec2  uv = (XY * 2.0 - fv2_1 * iResolution.xy)/smallWay;
     gT  = iTime * TAU * 0.01;
-    vec3  ro = vec3( vec2(cos(gT), sin(gT)) * 30.0, mix(8.0, 20.0, sin(gT) * 0.5 + 0.5)).xzy;
+    vec3  ro = vec3( vec2(cos(gT), sin(gT)) * 30.0, mix(-4.0, 15.0, sin(gT * 0.21) * 0.5 + 0.5)).xzy;
     vec3  la = vec3( 0.0, 0.0, 0.0);
     float zoom = 4.0;
     vec3  rd = getRayDirection(ro, la, uv, zoom);
@@ -215,16 +217,18 @@ void mainImage(out vec4 RGBA, in vec2 XY)
       rgb = mix(rgb, albedo(shrf), 0.2);
     }
 
-    // shading
-    float shadeFac = max(shadowFac, dot(ld, nrm));
+    if (sh.material != mat_no_hit) {
+      // shading
+      float shadeFac = max(shadowFac, dot(ld, nrm));
 
-    // shadow
-    SurfaceHit shsh = march(sh.position + nrm * 0.01, ld, unused);
-    if (shsh.material != mat_no_hit) {
-        shadeFac = shadowFac;
+      // shadow
+      SurfaceHit shsh = march(sh.position + nrm * 0.01, ld, unused);
+      if (shsh.material != mat_no_hit) {
+          shadeFac = shadowFac;
+      }
+
+      rgb *= shadeFac;
     }
-
-    rgb *= shadeFac;
 
     // fog
     float dist = length(ro - sh.position);
@@ -234,8 +238,9 @@ void mainImage(out vec4 RGBA, in vec2 XY)
     // rgb = pow(rgb, vec3(0.4545));
     rgb = pow(rgb, vec3(0.6));
   
-    // ray steps
-    // RGBA.r += numSteps / rmMaxSteps;
+    #if SHOW_PIXEL_COST
+    rgb.r += numSteps / rmMaxSteps;
+    #endif
 
     RGBA.rgb = rgb;
 }
