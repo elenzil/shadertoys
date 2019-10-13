@@ -23,11 +23,11 @@ const float MAX_FLOAT = intBitsToFloat(0x7f7fffff);
 
 
 // less common
-const float rmMaxSteps = 150.0;
+const float rmMaxSteps = 350.0;
 const float rmMaxDist  = 150.0;
 const float rmEpsilon  =   0.01;
-const float grEpsilon  =   0.00001;
-const float nrmBackoff =   grEpsilon * 100.0;
+const float grEpsilon  =   0.001;
+const float nrmBackoff =   grEpsilon * 1.0;
 
 const float shadowFac  = 0.2;           // 1.0 for no shadows, 0.0 for black.
 const vec3  clr_fog   = vec3(0.0, 0.03, 0.05);
@@ -71,25 +71,33 @@ float checkers2D(vec2 p)
 }
 
 vec3 albedo(in SurfaceHit sh) {
-    switch(sh.material) {
-        default:
-            return clr_er1;
-        case mat_no_hit:
-            return clr_fog;
-        case mat_0:
-            return clr_pnk * (0.7 + 0.3 * checkers2D(vec2(sh.position.y - gT * 3.0, 0.1) * 1.0));
-        case mat_1:
-            return clr_grn * (0.7 + 0.3 * checkers2D(vec2(sh.position.y - gT * 3.0, 0.1) * 1.0));
-        case mat_2: {
-            float w = 1.0/(2.0 + dot(sh.position.xz, sh.position.xz));
-            vec3 c1 = mix(clr_yel, clr_wht, smoothstep(0.5 - w, 0.5 + w, 2.0 * abs(-0.5 + fract(0.25 + 16.0 * (atan(sh.position.x, sh.position.z) / TAU)))));
-            vec3 c2 = mix(clr_red, clr_cyn, checkers2D(sh.position.xz * 0.1));
-            return mix(c1, c2, clamp(length(sh.position.xz) / (rmMaxDist * 0.5) + 0.2, 0.0, 1.0));
-          }
-        case mat_3:
-            return clr_mag * (0.7 + 0.3 * checkers2D(vec2(sh.position.y + gT * 3.0, 0.1) * 1.0));
-        case mat_4:
-            return clr_wht;
+    if (false) {
+        // noop
+    }
+    else if (sh.material == mat_no_hit) {
+        return clr_fog;
+    }
+    else if (sh.material == mat_0) {
+        return clr_pnk * (0.7 + 0.3 * checkers2D(vec2(sh.position.y - gT * 3.0, 0.1) * 1.0));
+    }
+    else if (sh.material == mat_1) {
+        return clr_grn * (0.7 + 0.3 * checkers2D(vec2(sh.position.y - gT * 3.0, 0.1) * 1.0));
+    }
+    else if (sh.material == mat_2) {
+        float ch = checkers2D(sh.position.xz * 0.1);
+        float w = 1.0/(2.0 + dot(sh.position.xz, sh.position.xz));
+        vec3 c1 = mix(clr_yel, clr_wht, smoothstep(0.5 - w, 0.5 + w, 2.0 * abs(-0.5 + fract(-gT * (ch - 0.5) * 2.0 + 16.0 * (atan(sh.position.x, sh.position.z) / TAU)))));
+        vec3 c2 = mix(clr_red, clr_cyn, ch);
+        return mix(c1, c2, clamp(length(sh.position.xz) / (rmMaxDist * 0.5) + 0.2, 0.0, 1.0));
+    }
+    else if (sh.material == mat_3) {
+        return clr_mag * (0.7 + 0.3 * checkers2D(vec2(sh.position.y + gT * 3.0, 0.1) * 1.0));
+    }
+    else if (sh.material == mat_4) {
+        return clr_wht;
+    }
+    else {
+        return clr_er1;
     }
 }
 
@@ -112,9 +120,21 @@ float sdfCylinderX(in vec3 p, float radius) {
 }
 
 float sdfFloor(in vec3 p, float height) {
-  return p.y - height;
+  float lxz = length(p.xz);
+  float floorRipple = sin(sqrt(lxz) * 2.0 + mod(gT, 25.0) * -25.0) * 0.4;
+  floorRipple *= 7.0 * smoothstep(0.0, 20.0, lxz) / (1.0 + lxz * 0.05);
+  return p.y - height + floorRipple;
 }
 
+// todo: how to get the material without all this ternaries ?
+//       we only care about material during shading, not when marching or getting normal.
+//       idea: two SDF fn's, only one of which has the material logic.
+//             this could be made even uglier by using #def's.
+//             #def SDF_FULL(all the things) {\...\...\}
+//             #def INCLUDE_MATERIAL false
+//             #def SDF_NO_MAT(p) SDF_FULL
+//             #def INCLUDE_MATERIAL true
+//             etc. ugh.
 float sdf(in vec3 p, out int material) {
   const float sphRad = 5.0;
 
@@ -127,13 +147,15 @@ float sdf(in vec3 p, out int material) {
   m = d == D ? mat_0 : m;
 
   const float offset = 1.1;
-  D = sdfSphere(p + fv3_x * +offset * sphRad,  sphRad);
+  vec3 pax = vec3(abs(p.x) -offset * sphRad, p.y, p.z);
+  D = sdfSphere(pax,  sphRad);
   d = max(d, -D);
   m = d == -D ? mat_1 : m;
 
-  D = sdfSphere(p + fv3_x * -offset * sphRad,  sphRad);
+  pax.x += sphRad * 0.65;
+  pax.x *= -1.0;
+  D = pax.x;
   d = max(d, -D);
-  m = d == -D ? mat_1 : m;
 
   D = sdfCylinderX(p, sphRad * 0.5);
   d = max(d, -D);
@@ -143,7 +165,8 @@ float sdf(in vec3 p, out int material) {
   d = min(d, D);
   m = d == D ? mat_4 : m;
 
-  D = sdfFloor (p, -sphRad);
+  // lower the floor slightly to avoid some shadow tearing.
+  D = sdfFloor (vec3(p.xz, p.y + 0.2).xzy, -sphRad);
   d = min(d, D);
   m = d == D ? mat_2 : m;
 
@@ -157,9 +180,9 @@ vec3 estimateNormal(vec3 p) {
   const float e = grEpsilon;
   int unused;
   return normalize(vec3(
-    sdf(vec3(p.x + e, p.y    , p.z     ), unused) - sdf(vec3(p.x - e, p.y    , p.z    ), unused),
-    sdf(vec3(p.x    , p.y + e, p.z     ), unused) - sdf(vec3(p.x    , p.y - e, p.z    ), unused),
-    sdf(vec3(p.x    , p.y    , p.z  + e), unused) - sdf(vec3(p.x    , p.y    , p.z - e), unused)
+    sdf(vec3(p.x + e, p.y    , p.z    ), unused) - sdf(vec3(p.x - e, p.y    , p.z    ), unused),
+    sdf(vec3(p.x    , p.y + e, p.z    ), unused) - sdf(vec3(p.x    , p.y - e, p.z    ), unused),
+    sdf(vec3(p.x    , p.y    , p.z + e), unused) - sdf(vec3(p.x    , p.y    , p.z - e), unused)
   ));
 }
 
@@ -191,14 +214,14 @@ void mainImage(out vec4 RGBA, in vec2 XY)
     float smallWay = min(iResolution.x, iResolution.y);
     vec2  uv = (XY * 2.0 - fv2_1 * iResolution.xy)/smallWay;
     gT  = iTime * TAU * 0.01;
-    vec3  ro = vec3( vec2(cos(gT), sin(gT)) * 30.0, mix(-4.0, 15.0, sin(gT * 0.21) * 0.5 + 0.5)).xzy;
+    vec3  ro = vec3( vec2(cos(gT), sin(gT)) * 30.0, mix(0.0, 20.0, sin(gT * 0.21) * 0.5 + 0.5)).xzy;
     vec3  la = vec3( 0.0, 0.0, 0.0);
     float zoom = 4.0;
     vec3  rd = getRayDirection(ro, la, uv, zoom);
 
     vec3  rgb = clr_fog;
 
-    vec3  ld = normalize(vec3(sin(gT * -3.0), 2.0 * (sin(gT * 5.0) * 0.49 + 0.51), cos(gT * -3.0)));
+    vec3  ld = normalize(vec3(sin(gT * -3.0), 2.0 * (sin(gT * 5.0) * 0.4 + 0.6), cos(gT * -3.0)));
 
     float numSteps;
     SurfaceHit sh = march(ro, rd, numSteps);
@@ -206,15 +229,17 @@ void mainImage(out vec4 RGBA, in vec2 XY)
 
     vec3 nrm = estimateNormal(sh.position - rd * nrmBackoff);
 
-    float unused;
+    float numSubSteps;
 
     if (sh.material == mat_2) {
-      SurfaceHit shrf = march(sh.position + nrm * 0.01, reflect(rd, nrm), unused);
+      SurfaceHit shrf = march(sh.position + nrm * 0.01, reflect(rd, nrm), numSubSteps);
       rgb = mix(rgb, albedo(shrf), 0.2);
+      numSteps += numSubSteps;
     }
     if (sh.material == mat_4) {
-      SurfaceHit shrf = march(sh.position + nrm * 0.01, reflect(rd, nrm), unused);
+      SurfaceHit shrf = march(sh.position + nrm * 0.01, reflect(rd, nrm), numSubSteps);
       rgb = mix(rgb, albedo(shrf), 0.2);
+      numSteps += numSubSteps;
     }
 
     if (sh.material != mat_no_hit) {
@@ -222,7 +247,8 @@ void mainImage(out vec4 RGBA, in vec2 XY)
       float shadeFac = max(shadowFac, dot(ld, nrm));
 
       // shadow
-      SurfaceHit shsh = march(sh.position + nrm * 0.01, ld, unused);
+      SurfaceHit shsh = march(sh.position + nrm * 0.01, ld, numSubSteps);
+      numSteps += numSubSteps;
       if (shsh.material != mat_no_hit) {
           shadeFac = shadowFac;
       }
