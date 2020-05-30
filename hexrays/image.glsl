@@ -3,10 +3,41 @@ struct lineSeg_t {
     vec2  ptB;
 };
 
+struct lineSegEx_t {
+    lineSeg_t pts;
+    float     len;  // |a->b|
+    vec2      dir;  // a->b, normalized
+    vec2      nrm;  // dir rotated 90 deg ccw
+                    // todo precalc this stuff in bufferA
+};
+
 float uvScale = 1.0;
 
-float outlineCircle(vec2 pt, vec2 c, float r, float width) {
-    return smoothstep(r, r - width, length(pt - c));
+float leftHandDistLine(in vec2 pt, in lineSegEx_t lse) {
+    vec2 ptA_pt = pt - lse.pts.ptA;
+    return dot(ptA_pt, lse.nrm);
+}
+
+float lineCircle(in vec2 pt, in vec2 c, in float r, in float width) {
+    return smoothstep(width + 4.0, width, abs(length(pt - c) - r));
+}
+
+float lineSegment(in vec2 pt, in lineSegEx_t lse, in float width) {
+
+    float d = leftHandDistLine(pt, lse);
+    return smoothstep(width + 4.0, width, abs(d));
+}
+
+lineSegEx_t calcLineSegDetails(in lineSeg_t ls) {
+    lineSegEx_t lse;
+
+    lse.pts = ls;
+    vec2 vAB = ls.ptB - ls.ptA;
+    lse.len = length(vAB);
+    lse.dir = vAB / lse.len;
+    lse.nrm = vec2(-lse.dir.y, lse.dir.x);
+
+    return lse;
 }
 
 vec4 renderPolygon(vec2 pt) {
@@ -19,8 +50,13 @@ vec4 renderPolygon(vec2 pt) {
         vec4 txl = texelFetch(iChannel0, ivec2(n + 1, topLine), 0);
         lineSeg_t ls = lineSeg_t(txl.xy, txl.zw);
 
-        c += outlineCircle(pt, ls.ptA,sin(iTime) * 40.0 + 40.0, 2.0 * uvScale) * 0.1;
+        lineSegEx_t lse = calcLineSegDetails(ls);
+
+        c += lineCircle (pt, ls.ptA, lse.len / 2.0, 4.0);
+        c += lineSegment(pt, lse, 4.0);
     }
+
+//    c = min(1.0, c);
 
     return vec4(c);
 }
@@ -38,12 +74,12 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     RGBA.rgba = bufa;
 
-    RGBA.b = smoothstep(1.0 - 2.0 * uvScale, 1.0, length(xy) - 200.0);
-    RGBA.r = 1.0 - smoothstep(1.0 - 2.0 * uvScale, 1.0, length(xy) - 100.0);
     RGBA = (RGBA + renderPolygon(xy)) * 0.5;
     
-    if (XY.y < 50.0) {
-        RGBA.rgb *= vec3(sin(iTime * 3.0 + (UV.x * 12.0)) * 0.5 + 0.5);
+    if (XY.y < 5.0) {
+        RGBA.r += sin(iTime * 3.11 + (UV.x * 12.0)) * 0.5 + 0.5;
+        RGBA.g += sin(iTime * 3.22 + (UV.x * 12.0)) * 0.5 + 0.5;
+        RGBA.b += sin(iTime * 3.33 + (UV.x * 12.0)) * 0.5 + 0.5;
     }
 
 }

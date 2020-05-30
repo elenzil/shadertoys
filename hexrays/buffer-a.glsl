@@ -1,7 +1,6 @@
 // buffer A runs a raytrace of a single ray through a hexagon
 // outputs a bunch of line segments for rendering.
 
-const int   polySides = 13;
 const float PI        = 3.14159265259;
 const float PI2       = (PI * 2.0);
 
@@ -13,7 +12,8 @@ struct lineSeg_t {
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
 
-    float polyRad = 300.0;
+    int   polySides = 7;
+    float polyRad   = 300.0;
 
     const float zoom = 1.0;
 
@@ -31,7 +31,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
         else if (Ij.x - 1 < polySides) {
             // encode the point
             float thetaA = float(Ij.x - 1) * PI2 / float(polySides);
-            thetaA += iTime;
+            thetaA += iTime * PI2 / 40.0;
             float thetaB = thetaA + PI2 / float(polySides);
             vec2 ptA = vec2(cos(thetaA), sin(thetaA)) * polyRad;
             vec2 ptB = vec2(cos(thetaB), sin(thetaB)) * polyRad;
