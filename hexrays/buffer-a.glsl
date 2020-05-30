@@ -1,7 +1,7 @@
 // buffer A runs a raytrace of a single ray through a hexagon
 // outputs a bunch of line segments for rendering.
 
-const int   polySides = 6;
+const int   polySides = 13;
 const float PI        = 3.14159265259;
 const float PI2       = (PI * 2.0);
 
@@ -13,9 +13,9 @@ struct lineSeg_t {
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
 
-    float polyRad = 50.0;
+    float polyRad = 300.0;
 
-    const float zoom = 20.0;
+    const float zoom = 1.0;
 
     ivec2 IJ = ivec2(XY / zoom);
     ivec2 Ij = ivec2(IJ.x, iResolution.y / zoom - IJ.y - 1);
@@ -36,7 +36,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
             vec2 ptA = vec2(cos(thetaA), sin(thetaA)) * polyRad;
             vec2 ptB = vec2(cos(thetaB), sin(thetaB)) * polyRad;
             lineSeg_t ls = lineSeg_t(ptA, ptB);
-            RGBA = vec4(ls.ptA, ls.ptB) / polyRad + 1.0;
+            RGBA = vec4(ls.ptA, ls.ptB);
         }
     }
 }
