@@ -76,10 +76,11 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     RGBA = (RGBA + renderPolygon(xy)) * 0.5;
     
-    if (XY.y < 5.0) {
-        RGBA.r += sin(iTime * 3.11 + (UV.x * 12.0)) * 0.5 + 0.5;
-        RGBA.g += sin(iTime * 3.22 + (UV.x * 12.0)) * 0.5 + 0.5;
-        RGBA.b += sin(iTime * 3.33 + (UV.x * 12.0)) * 0.5 + 0.5;
+    if (XY.y < 50.0) {
+        RGBA.r   += sin(iTime * 3.11 + (UV.x * 12.0)) * 0.5 + 0.5;
+        RGBA.g   += sin(iTime * 3.22 + (UV.x * 12.0)) * 0.5 + 0.5;
+        RGBA.b   += sin(iTime * 3.33 + (UV.x * 12.0)) * 0.5 + 0.5;
+        RGBA.rgb -= smoothstep(0.9, 1.0, sin(iTime * 10.00 - (UV.x * 200.0 - UV.y * 10.0)));
     }
 
 }

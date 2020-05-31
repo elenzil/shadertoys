@@ -12,7 +12,7 @@ struct lineSeg_t {
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
 
-    int   polySides = 7;
+    int   polySides = 27;
     float polyRad   = 300.0;
 
     const float zoom = 1.0;
