@@ -1,14 +1,7 @@
 // buffer A runs a raytrace of a single ray through a hexagon
 // outputs a bunch of line segments for rendering.
 
-const float PI        = 3.14159265259;
-const float PI2       = (PI * 2.0);
-
-struct lineSeg_t {
-    vec2  ptA;
-    vec2  ptB;
-};
-
+#include <common.glsl>
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
 
