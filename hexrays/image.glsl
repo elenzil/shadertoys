@@ -2,31 +2,19 @@
 
 float uvScale = 1.0;
 
-float leftHandDistLine(in vec2 pt, in lineSegEx_t lse) {
-    vec2 ptA_pt = pt - lse.pts.ptA;
-    return dot(ptA_pt, lse.nrm);
+float leftHandDistLine(in vec2 pt, in raySeg_t rs) {
+    vec2 v = pt - rs.pnt;
+    return dot(v, rs.nrm);
 }
 
-float lineCircle(in vec2 pt, in vec2 c, in float r, in float width) {
+float rendCircle(in vec2 pt, in vec2 c, in float r, in float width) {
     return smoothstep(width + 4.0, width, abs(length(pt - c) - r));
 }
 
-float lineSegment(in vec2 pt, in lineSegEx_t lse, in float width) {
+float rendRaySeg(in vec2 pt, in raySeg_t rs, in float width) {
 
-    float d = leftHandDistLine(pt, lse);
+    float d = leftHandDistLine(pt, rs);
     return smoothstep(width + 4.0, width, abs(d));
-}
-
-lineSegEx_t calcLineSegDetails(in lineSeg_t ls) {
-    lineSegEx_t lse;
-
-    lse.pts = ls;
-    vec2 vAB = ls.ptB - ls.ptA;
-    lse.len = length(vAB);
-    lse.dir = vAB / lse.len;
-    lse.nrm = vec2(-lse.dir.y, lse.dir.x);
-
-    return lse;
 }
 
 vec4 renderPolygon(vec2 pt) {
@@ -36,13 +24,12 @@ vec4 renderPolygon(vec2 pt) {
     float c = 0;
 
     for (int n = 0; n < numSides; ++n) {
-        vec4 txl = texelFetch(iChannel0, ivec2(n + 1, topLine), 0);
-        lineSeg_t ls = lineSeg_t(txl.xy, txl.zw);
+        vec4 txl1 = texelFetch(iChannel0, ivec2((n * 2) + 0, topLine), 0);
+        vec4 txl2 = texelFetch(iChannel0, ivec2((n * 2) + 1, topLine), 0);
+        raySeg_t rs = unpackRaySeg(txl1, txl2);
 
-        lineSegEx_t lse = calcLineSegDetails(ls);
-
-        c += lineCircle (pt, ls.ptA, lse.len / 2.0, 4.0);
-        c += lineSegment(pt, lse, 4.0);
+        c += rendCircle(pt, rs.pnt, rs.len / 2.0, 4.0);
+        //c += rendRaySeg(pt, rs, 4.0);
     }
 
 //    c = min(1.0, c);

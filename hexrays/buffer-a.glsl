@@ -21,15 +21,20 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
             // first pixel of top row has the number of sides
             RGBA.r = polySides;
         }
-        else if (Ij.x - 1 < polySides) {
+        else if ((Ij.x - 1) * 2 < polySides) {
             // encode the point
             float thetaA = float(Ij.x - 1) * PI2 / float(polySides);
             thetaA += iTime * PI2 / 40.0;
             float thetaB = thetaA + PI2 / float(polySides);
             vec2 ptA = vec2(cos(thetaA), sin(thetaA)) * polyRad;
             vec2 ptB = vec2(cos(thetaB), sin(thetaB)) * polyRad;
-            lineSeg_t ls = lineSeg_t(ptA, ptB);
-            RGBA = vec4(ls.ptA, ls.ptB);
+            raySeg_t rs = calcRaySeg(ptA, ptB);
+            if (Ij.x % 2 == 0) {
+                RGBA = packRaySeg1of2(rs);
+            }
+            else {
+                RGBA = packRaySeg2of2(rs);
+            }
         }
     }
 }
