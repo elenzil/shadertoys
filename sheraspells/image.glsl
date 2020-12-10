@@ -28,7 +28,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     uvScale *= 2.0;
     vec2  uv  = (XY - iResolution.xy / 2.0) * uvScale;
 
-    uv *= rot2(gMyTime2);
+    uv *= rot2(gMyTime2 * 0.321);
 
     float d = 1e9;
     float suk = 0.04;
@@ -101,6 +101,8 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     float c  = mix       (c1  , c2  , 0.65);
 
     vec3 rgb = mix(vec3(0.6, 0.0, 0.7), vec3(0.0), c);
+
+    rgb += vec3(0.6, 0.6, 0.0) * smoothstep(0.03, 0.0, abs(d));
 
     RGBA = vec4(rgb, 1.0);
 
