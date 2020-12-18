@@ -32,14 +32,21 @@ mat2 rot2(float radians) {
 }
 
 float sdScene(in vec2 p) {
-    float width = 0.1;
+    float width = 0.03;
 
     float d = 1e9;
 
     mat2 r1 = rot2(gMyTime * 0.1);
+    vec2 sep = vec2(0.3, 0.0);
 
     float pentRad = 0.5;
-    d = opUnion(d, sdAnnularPentagon(r1 * p, pentRad - width, pentRad));
+    float pr;
+
+    pr = pentRad - 0.2 * (sin(gMyTime * 0.2) * 0.5 + 0.5);
+    d = opUnion(d, sdAnnularPentagon(r1 * (p + sep), pr - width, pr));
+
+    pr = pentRad - 0.2 * (cos(gMyTime * 0.2) * 0.5 + 0.5);
+    d = opUnion(d, sdAnnularPentagon((p - sep) * r1, pr - width, pr));
 
     return d;
 }
@@ -66,12 +73,28 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     vec2  gn  = normalize(g);
     vec2  gnu = gn * 0.5 + 0.5;
 
-    float c = smoothstep(0.0, 0.02, d);
+    float c = 1.0;
     vec3  rgb = vec3(c);
     rgb.yz *= (gnu * 0.7) + 0.3;
 
-    vec4 bufa = texture(iChannel0, UV);
-    rgb.x *= bufa.x;
+    vec3  accum = vec3(0.0);
+    float total = 0.0;
+    vec2 q = UV;
+    const float nEnd = 10.0;
+    for (float n = 0.0; n < nEnd; ++n) {
+        float contrib = (1.0 - (n + 1.0) / nEnd);
+        accum += contrib * texture(iChannel0, q).rgb;
+        total += contrib;
+
+        q += gn * 0.01;
+    }
+
+    accum /= total;
+
+    rgb *= accum;
+
+    rgb += 0.4 * smoothstep(0.05, 0.0, d);
+    rgb += 0.2 * smoothstep(0.005, 0.0, d);
 
     RGBA.rgba = vec4(rgb, 1.0);
 }

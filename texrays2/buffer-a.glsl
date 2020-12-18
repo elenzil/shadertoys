@@ -9,9 +9,12 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     gMyTime = iTime * PI2;
 
-    float zoom = 0.1;
+    vec2 uv = XY / min(iResolution.x, iResolution.y);
 
-    float s = sin(XY.x * zoom) * sin(XY.y * zoom + gMyTime * 0.3) * 0.5 + 0.5;
+    float zoom = 20.0;
+
+    float s = sin(uv.x * zoom) * sin(uv.y * zoom + gMyTime * 0.3) * 0.5 + 0.5;
+    s = smoothstep(0.4, 0.6, s) * 0.9 + 0.1;
 
     RGBA = vec4(vec3(s), 1.0);
 }
