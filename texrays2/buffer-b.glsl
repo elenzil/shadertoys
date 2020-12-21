@@ -51,21 +51,25 @@ float sdScene(in vec2 p) {
 
     float d = 1e9;
 
-    mat2 r1 = rot2(gMyTime * 0.01);
-    vec2 sep = vec2(0.3, 0.0);
+    float circRad = 0.8 + sin(gMyTime * 0.11) * 0.1;
+    d = opUnion(d, -sdCircle(p, circRad));
 
-    float pentRad = 0.5;
+    mat2 r2   = rot2(sin(gMyTime * 0.2) * 0.2);
+    d = opSubtraction2(d, sdCircle(abs(r2 * p) - circRad * 0.75, 0.2));
+
+    mat2 r1   = rot2(gMyTime * -0.1);
+    vec2 sep  = vec2(sin(gMyTime * 0.321) * 0.55, 0.0);
+    vec2 sep2 = vec2(0.0, cos(gMyTime * 0.2) * 0.3);
+
+    float pentRad = 0.2;
     float pr;
 
-    pr = pentRad - 0.2 * (sin(gMyTime * 0.2) * 0.5 + 0.5);
-    d = opUnion(d, sdAnnularPentagon(r1 * (p + sep), pr - width, pr));
+    pr = pentRad;// - 0.2 * (sin(gMyTime * 0.2) * 0.5 + 0.5);
+    d = opUnion(d, sdPentagon(r1 * (p + sep + sep2), pr));
 
-    pr = pentRad - 0.2 * (cos(gMyTime * 0.2) * 0.5 + 0.5);
-    d = opUnion(d, sdAnnularPentagon((p - sep) * r1, pr - width, pr));
+    pr = pentRad ; // - 0.2 * (cos(gMyTime * 0.2) * 0.5 + 0.5);
+    d = opUnion(d, sdPentagon((p - sep - sep2) * r1, pr));
   
-    float circRad = 1.5;
-    d = opUnion(d, sdAnnulus(p, circRad - width, circRad));
-
     return d;
 }
 
@@ -76,7 +80,7 @@ vec2 gradScene(in vec2 p, in float d_at_p) {
 }
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
-    gMyTime = iTime * 3.14159 * 2.0 * 0.0;
+    gMyTime = iTime * 3.14159 * 2.0;
 
     float smallRes = min(iResolution.x, iResolution.y);
 

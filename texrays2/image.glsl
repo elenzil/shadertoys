@@ -82,17 +82,16 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     vec2  gn  = g / sd.w;
     vec2  gnu = gn * 0.5 + 0.5;
 
-    float c = 1.0;
+    float c = 0.0;
     vec3  rgb = vec3(c);
 //    rgb.yz *= gnu * 0.7;
-    rgb.yz *= g * 5000.0;
-    rgb.x  *= length(g) * 5000.0;
+    // rgb.yz *= g * 5000.0;
+    // rgb.x  *= length(g) * 5000.0;
 
 //        vec2 uv = smallRes * q / (2.0 * iResolution.xy) + 0.5;
 
 
-    rgb += 0.2 * smoothstep(0.03, 0.0, d);
-    rgb += 0.5 * smoothstep(0.005, 0.0, d);
+    rgb += 0.5 * smoothstep(0.03, 0.0, d);
     
     float smallRes = min(iResolution.x, iResolution.y);
     vec2  p  = (XY - iResolution.xy * 0.5) / smallRes * 2.0;
@@ -100,7 +99,19 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
   //  rgb = vec3(0.0);
     
     vec2 part1 = texelFetch(iChannel0, ivec2(0), 0).xy;
-    rgb += smoothstep(0.0, 0.01, length(part1 - p) - 0.1);
+    rgb += smoothstep(0.01, 0.0, length(part1 - p) - ballRad);
+
+    ivec2 pij = ivec2((iResolution.xy + part1 * smallRes) / 2.0);
+
+    vec4 sdp1 = texelFetch(iChannel1, ivec2(pij), 0);
+
+#if 0
+    // calculate vector to zero
+    float sdfVal = sdp1.x;
+    vec2  sdfGrd = sdp1.yz;
+    vec2  closestZero = part1 - sdp1.x * sdp1.yz / sdp1.w;
+    rgb += smoothstep(0.01, 0.0, length(closestZero - p) - 0.1);
+#endif
 
     RGBA.rgba = vec4(rgb, 1.0);
 }

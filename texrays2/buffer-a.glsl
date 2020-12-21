@@ -49,14 +49,15 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
             
             // and advance
-            vec3 gradInfo = texelFetch(iChannel1, pij, 0).yzw;
-            vec2 grad     = gradInfo.xy;
-            vec2 gradNorm = grad/gradInfo.z;
-            vec2 tang     = vec2(-grad.y, grad.x);
+            vec4 sdfInfo = texelFetch(iChannel1, pij, 0);
+            vec2 grd     = sdfInfo.yz;
+            vec2 grdNorm = grd/sdfInfo.w;
+            vec2 tang    = vec2(-grd.y, grd.x);
 
-            v *= 0.8;
-            v += dt  * tang * 12000.0 * 3.0;
+            v = tang * 12000.0 * 1.0;
             p += dt  * v;
+
+            p -= (sdfInfo.x - ballRad) * grdNorm;
 
             n += 1.0;
         }
