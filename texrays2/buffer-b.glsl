@@ -1,3 +1,7 @@
+/////////////////////////
+// this buffer is the SDF scene
+
+
 #ifdef GRIMOIRE
 #include <common.glsl>
 #endif
@@ -47,7 +51,7 @@ float sdScene(in vec2 p) {
 
     float d = 1e9;
 
-    mat2 r1 = rot2(gMyTime * 0.1);
+    mat2 r1 = rot2(gMyTime * 0.01);
     vec2 sep = vec2(0.3, 0.0);
 
     float pentRad = 0.5;
@@ -58,7 +62,7 @@ float sdScene(in vec2 p) {
 
     pr = pentRad - 0.2 * (cos(gMyTime * 0.2) * 0.5 + 0.5);
     d = opUnion(d, sdAnnularPentagon((p - sep) * r1, pr - width, pr));
-    
+  
     float circRad = 1.5;
     d = opUnion(d, sdAnnulus(p, circRad - width, circRad));
 
@@ -72,37 +76,17 @@ vec2 gradScene(in vec2 p, in float d_at_p) {
 }
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
-    ivec2 IJ = ivec2(XY);
-    
-    // fetch scene SDF plus gradient and gradient magnitude
-    vec4  sd = texelFetch(iChannel1, IJ, 0);
+    gMyTime = iTime * 3.14159 * 2.0 * 0.0;
 
-    float d   = sd.x;
-    vec2  g   = sd.yz;
-    vec2  gn  = g / sd.w;
-    vec2  gnu = gn * 0.5 + 0.5;
-
-    float c = 1.0;
-    vec3  rgb = vec3(c);
-//    rgb.yz *= gnu * 0.7;
-    rgb.yz *= g * 5000.0;
-    rgb.x  *= length(g) * 5000.0;
-
-//        vec2 uv = smallRes * q / (2.0 * iResolution.xy) + 0.5;
-
-
-    rgb += 0.2 * smoothstep(0.03, 0.0, d);
-    rgb += 0.5 * smoothstep(0.005, 0.0, d);
-    
     float smallRes = min(iResolution.x, iResolution.y);
-    vec2  p  = (XY - iResolution.xy * 0.5) / smallRes * 2.0;
-    
-  //  rgb = vec3(0.0);
-    
-    vec2 part1 = texelFetch(iChannel0, ivec2(0), 0).xy;
-    rgb += smoothstep(0.0, 0.01, length(part1 - p) - 0.1);
 
-    RGBA.rgba = vec4(rgb, 1.0);
+    vec2  p  = (XY - iResolution.xy * 0.5) / smallRes * 2.0;
+
+    float d   = sdScene(p);
+    vec2  g   = gradScene(p, d);
+    float gm  = length(g);
+
+    RGBA.rgba = vec4(d, g.x, g.y, gm);
 }
 
 #ifdef GRIMOIRE

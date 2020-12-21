@@ -1,22 +1,71 @@
-// buffer A runs a raytrace of a single ray through a hexagon
-// outputs a bunch of line segments for rendering.
+/////////////////////////
+// this buffer is the dynamics, based on the SDF
 
+#ifdef GRIMOIRE
 #include <common.glsl>
+#endif
 
 float gMyTime = 0.0;
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
+    ivec2 IJ = ivec2(XY);
+    
+    if (IJ.x > 0 || IJ.y < 0) {
+        discard;
+    }
+    
+    vec2 p;
+    vec2 v;
+    
+    if (iFrame < 5) {
+        p = vec2(0.0);
+        v = vec2(0.0);
+    }
+    else if (iMouse.z > 0.0) {
+        float smallRes = min(iResolution.x, iResolution.y);
+        p  = (iMouse.xy - iResolution.xy * 0.5) / smallRes * 2.0;
+        v  = vec2(0.0);
+    }
+    else {
+        // fetch last value
+        vec4 pv = texelFetch(iChannel0, IJ, 0);
 
-    gMyTime = iTime * PI2;
+        p = pv.xy;
+        v = pv.zw;
+        
+        float smallRes = min(iResolution.x, iResolution.y);
 
-    vec2 uv = XY / min(iResolution.x, iResolution.y);
+        // normalize euler integration to at least 60 Hz
+        const float fixedDT = 1.0 / 30.0;
+        float steps = round(iTimeDelta / fixedDT);
 
-    float zoom = 20.0;
+        steps = max(steps, 1.0);
 
-    float s = sin(uv.x * zoom) * sin(uv.y * zoom + gMyTime * 0.3) * 0.5 + 0.5;
-    s = smoothstep(0.4, 0.6, s) * 0.9 + 0.1;
+        float dt = iTimeDelta / steps;
 
-    RGBA = vec4(vec3(s), 1.0);
+        float n = 0;
+        while (n < steps) {
+            ivec2 pij = ivec2((iResolution.xy + p * smallRes) / 2.0);
+
+            
+            // and advance
+            vec3 gradInfo = texelFetch(iChannel1, pij, 0).yzw;
+            vec2 grad     = gradInfo.xy;
+            vec2 gradNorm = grad/gradInfo.z;
+            vec2 tang     = vec2(-grad.y, grad.x);
+
+            v *= 0.8;
+            v += dt  * tang * 12000.0 * 3.0;
+            p += dt  * v;
+
+            n += 1.0;
+        }
+
+    }
+    
+   // p.x = 1.0;
+    
+    RGBA = vec4(p, v);
 }
 
 #ifdef GRIMOIRE
