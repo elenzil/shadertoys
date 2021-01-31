@@ -1,0 +1,13 @@
+
+
+[buffer-a]
+buffer = true
+[buffer-b]
+buffer = true
+
+[[pass]]
+clear      = [0.0, 0.0, 0.0, 1.0]
+draw       = {mode = "triangles", count = 1}
+vertex     = "./fullscreen_triangle.glsl"
+fragment   = "./image.glsl"
+
