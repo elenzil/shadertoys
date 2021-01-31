@@ -12,14 +12,6 @@ draw      = {mode = "triangles", count = 1}
 vertex    = "./fullscreen_triangle.glsl"
 fragment  = "./buffer-a.glsl"
 iChannel0  = {resource = "buffer-a", filter="nearest", wrap="repeat"}
-iChannel1  = {resource = "buffer-b", filter="nearest", wrap="repeat"}
-
-[[pass]]
-buffer    = "buffer-b"
-clear     = [0.0, 0.0, 0.0, 1.0]
-draw      = {mode = "triangles", count = 1}
-vertex    = "./fullscreen_triangle.glsl"
-fragment  = "./buffer-b.glsl"
 
 [[pass]]
 clear      = [0.0, 0.0, 0.0, 1.0]
@@ -27,5 +19,4 @@ draw       = {mode = "triangles", count = 1}
 vertex     = "./fullscreen_triangle.glsl"
 fragment   = "./image.glsl"
 iChannel0  = {resource = "buffer-a", filter="nearest", wrap="repeat"}
-iChannel1  = {resource = "buffer-b", filter="nearest", wrap="repeat"}
 
