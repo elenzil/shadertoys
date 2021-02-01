@@ -5,12 +5,21 @@
 #include <common.glsl>
 #endif
 
-float dirtLevel(float gx) {
+float dirtLevel(float gx)
+{
     float drtLev = -0.2;
-    drtLev += sin(gx * 7.0 - cos(gx * 5.31) * 0.3) * 0.10;
-    drtLev += sin(gx * 6.1) * 0.1;
-    drtLev += sin(gx * 0.4) * 0.2;
+    // high freq
+    drtLev += sin(gx * 7.0 - cos(gx * 2.31) * 1.7) * 0.05;
+    // low freq
+    drtLev += sin(gx * 1.1 + sin(gx * 0.4 ) * 1.4) * 0.3;
     return drtLev;
+}
+
+vec2 dirtNormal(float gx, float dirtLevelAtGx) {
+    const float eps = 0.001;
+    float gxp = gx + eps;
+    float dlp = dirtLevel(gxp);
+    return normalize(vec2(-(dlp - dirtLevelAtGx), eps));
 }
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
@@ -51,7 +60,13 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     float bpx = sin(MYTIME * 0.08);
     vec2 bc = vec2(bpx + MYTIME * scrollSpeed, 0.0);
-    bc.y = dirtLevel(bc.x) + 0.07;
+    float drtLevC = dirtLevel(bc.x);
+    bc.y = drtLevC;
+    bc.y += 0.05;
+    bc += dirtNormal(bc.x, drtLevC) * 0.03;
+
+    // todo: calculate velocity of ball
+    // rgb += rendPlayer(g, bc, ballVel)
 
     rgb += smoothstep(5.1, 5.0, length(g - bc) * 95.0) * 0.2;
     
