@@ -24,6 +24,11 @@ const int numBalls = 13;
 const float ballRadMin = 0.03;
 const float ballRadMax = 0.07;
 
+const float scrollSpeed = 0.02;
+
+
+const vec2  grv        = vec2(0.0, -1.0);
+
 #define MYTIME (iTime * 3.14159 * 2.0)
 
 // polynomial smooth min (k = 0.1);
@@ -35,56 +40,27 @@ float sminCubic( float a, float b, float k )
 
 const float epsilonGradient = 0.0001;
 
-// https://www.iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
-float opUnion( float d1, float d2 ) {  return min(d1,d2); }
-float opSubtraction( float d1, float d2 ) { return max(-d1,d2); }
-float opSubtraction2( float d1, float d2 ) { return max(d1,-d2); }
-float opIntersection( float d1, float d2 ) { return max(d1,d2); }
-
-float sdCircle( vec2 p, float r )
+float dirtLevel(float gx)
 {
-    return length(p) - r;
+    float drtLev = -0.2;
+    // high freq
+    drtLev += sin(gx * 7.0 - cos(gx * 2.31) * 1.7) * 0.05;
+    // low freq
+    drtLev += sin(gx * 1.1 + sin(gx * 0.4 ) * 1.4) * 0.3;
+    return drtLev;
 }
 
-float sdAnnulus(in vec2 p, in float r1, in float r2) {
-    return opSubtraction2(sdCircle(p, r2), sdCircle(p, r1));
+vec2 dirtNormal(float gx, float dirtLevelAtGx) {
+    const float eps = 0.001;
+    float gxp = gx + eps;
+    float dlp = dirtLevel(gxp);
+    return normalize(vec2(-(dlp - dirtLevelAtGx), eps));
 }
 
-float sdPentagon( in vec2 p, in float r )
-{
-    const vec3 k = vec3(0.809016994,0.587785252,0.726542528);
-    p.x = abs(p.x);
-    p -= 2.0*min(dot(vec2(-k.x,k.y),p),0.0)*vec2(-k.x,k.y);
-    p -= 2.0*min(dot(vec2( k.x,k.y),p),0.0)*vec2( k.x,k.y);
-    p -= vec2(clamp(p.x,-r*k.z,r*k.z),r);    
-    return length(p)*sign(p.y);
-}
-
-float sdAnnularPentagon(in vec2 p, in float r1, in float r2) {
-    return opSubtraction2(sdPentagon(p, r2), sdPentagon(p, r1));
-}
-
-mat2 rot2(float radians) {
-    float s = sin(radians);
-    float c = cos(radians);
-    return mat2(s, c, -c, s);
-}
-
-float sdScene(in vec2 p, in float time) {
-    return length(p);
-}
-
-vec2 gradScene(in vec2 p, in float time, in float d_at_p) {
-    float dex = sdScene(p + vec2(epsilonGradient, 0.0), time);
-    float dey = sdScene(p + vec2(0.0, epsilonGradient), time);
-    return vec2(dex - d_at_p, dey - d_at_p);
+vec2 screenToGame(in vec2 p, in float time, in float scrollSpeed) {
+    return vec2(p.x + time * scrollSpeed, p.y);
 }
 
 
-///////////////////////////////////////////
-
-float ballRad(float t) {
-    return mix(ballRadMin, ballRadMax, t);
-}
 
 
