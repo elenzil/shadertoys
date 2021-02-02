@@ -25,16 +25,25 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     if (iFrame == 0 || iMouse.z > 0) {
         pos = screenToGame(vec2(-0.8, 0.0), MYTIME, scrollSpeed);
         float drtLevC = dirtLevel(pos.x);
-        vec2  drtNorm = dirtNormal(pos.x, drtLevC) * 0.03;
+        vec2  drtNorm = dirtNormal(pos.x, drtLevC);
         pos.y = drtLevC;
         pos.y += 0.02;
-        pos += drtNorm;
-        vel = drtNorm * 50.0;
+        pos += drtNorm * 0.04;
+        vel = drtNorm;
     }
 
     vel += grv * iTimeDelta;
     pos += vel * iTimeDelta;
   
+    float drtLevC = dirtLevel(pos.x);
+
+    if (pos.y < drtLevC + 0.04) {
+        vec2  drtNorm = dirtNormal(pos.x, drtLevC);
+        vel = reflect(vel, drtNorm);
+        vel.y *= 0.8;
+        pos.y = drtLevC + 0.042;
+    }
+    
     RGBA = vec4(pos, vel);
 }
 
