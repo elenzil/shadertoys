@@ -34,6 +34,10 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     vel += grv * iTimeDelta;
     pos += vel * iTimeDelta;
+
+    vec2 distPast = screenToGame(vec2(0.0, 0.0), MYTIME, scrollSpeed) - pos;
+    vel.x += sqrt(max(0.0, distPast.x)) * 0.01;
+    
   
     float drtLevC = dirtLevel(pos.x);
 
