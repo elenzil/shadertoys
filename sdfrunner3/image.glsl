@@ -7,7 +7,7 @@
 
 void rendBall(inout vec3 rgb, in vec2 p, in vec2 c, in float r, in float theta) {
 
-    const float numSpokes = 7.0;
+    const float numSpokes = 4.0;
 
     vec2 cp = p - c;
     float dist = length(cp);
@@ -51,10 +51,11 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     }
 
     for (int n = 0; n < numBalls; ++n) {
-        vec4 ballInfo = texelFetch(iChannel0, ivec2(n, 0), 0);
-        vec2 bc = ballInfo.xy;
+        vec4 ballInfo1 = texelFetch(iChannel0, ivec2(n, 0), 0);
+        vec4 ballInfo2 = texelFetch(iChannel0, ivec2(n, 1), 0);
+        vec2 bc = ballInfo1.xy;
 //        rgb += smoothstep(5.1, 5.0, length(g - bc) * 95.0) * 0.2;
-        rgb = rendBall(rgb, g, bc, ballRad, ballInfo.z * 20.0);
+        rgb = rendBall(rgb, g, bc, ballRad, ballInfo2.x);
     }
     
 

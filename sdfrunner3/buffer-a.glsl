@@ -10,7 +10,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     RGBA *= 0.0;
 
-    if (IJ.y > 0) {
+    if (IJ.y > 1) {
         return;
     }
 
@@ -19,6 +19,29 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     }
 
     vec4 rgba = texelFetch(iChannel0, IJ, 0);
+
+    if (IJ.y == 1) {
+        if (iFrame == 0 || iMouse.z > 0) {
+            RGBA = vec4(0.0);
+            return;
+        }
+
+        vec4 rgba2 = texelFetch(iChannel0, ivec2(IJ.x, 0), 0);
+
+        float drtLevC = dirtLevel(rgba2.x);
+        if (rgba2.y < drtLevC + ballRad + 0.01) {
+            ssssssss todo: needs to acount for iDeltaTime, dummy...
+            rgba.y = mix(rgba.y, rgba2.z / ballRad / PI2 / 4.0, 0.2);
+        }
+        else {
+            rgba.y *= 0.995;
+        }
+        rgba.x += rgba.y;
+        RGBA = rgba;
+
+        return;
+    }
+
     vec2 pos = rgba.xy;
     vec2 vel = rgba.zw;
 
@@ -37,7 +60,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     vec2 distPast = screenToGame(vec2(0.0, 0.0), MYTIME, scrollSpeed) - pos;
     vel.x += sqrt(max(0.0, distPast.x - 0.9)) * 0.2;
-    vel.y +=      max(0.0, distPast.x - 0.9)  * 0.7;
+    vel.y +=      max(0.0, distPast.x - 0.9)  * 0.4;
     
   
     float drtLevC = dirtLevel(pos.x);
