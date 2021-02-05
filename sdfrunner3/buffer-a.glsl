@@ -42,11 +42,11 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
   
     float drtLevC = dirtLevel(pos.x);
 
-    if (pos.y < drtLevC + 0.04) {
+    if (pos.y < drtLevC + ballRad) {
         vec2  drtNorm = dirtNormal(pos.x, drtLevC);
         vel = reflect(vel, drtNorm);
         vel.y *= 0.8;
-        pos.y = drtLevC + 0.042;
+        pos.y = drtLevC + ballRad + 0.002;
     }
     
     RGBA = vec4(pos, vel);

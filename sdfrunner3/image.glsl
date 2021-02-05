@@ -5,6 +5,22 @@
 #include <common.glsl>
 #endif
 
+void rendBall(inout vec3 rgb, in vec2 p, in vec2 c, in float r, in float theta) {
+
+    const float numSpokes = 7.0;
+
+    vec2 cp = p - c;
+    float dist = length(cp);
+
+    float ang = atan(cp.y, cp.x);
+
+    vec3 col = vec3(sin(ang * numSpokes + theta) * 0.4 + 0.6);
+
+    rgb = mix(rgb, col, smoothstep(0.02, -0.0, abs(r - dist)));
+
+//    rgb += col;
+}
+
 void mainImage(out vec4 RGBA, in vec2 XY) {
     ivec2 IJ = ivec2(XY);
     float smallRes = min(iResolution.x, iResolution.y);
@@ -35,9 +51,10 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     }
 
     for (int n = 0; n < numBalls; ++n) {
-    vec4 ballInfo = texelFetch(iChannel0, ivec2(n, 0), 0);
-    vec2 bc = ballInfo.xy;
-    rgb += smoothstep(5.1, 5.0, length(g - bc) * 95.0) * 0.2;
+        vec4 ballInfo = texelFetch(iChannel0, ivec2(n, 0), 0);
+        vec2 bc = ballInfo.xy;
+//        rgb += smoothstep(5.1, 5.0, length(g - bc) * 95.0) * 0.2;
+        rgb = rendBall(rgb, g, bc, ballRad, ballInfo.z * 20.0);
     }
     
 
