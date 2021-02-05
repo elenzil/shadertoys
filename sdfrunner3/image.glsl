@@ -34,11 +34,11 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
         rgb.rb += -0.3;
     }
 
-    vec4 ballInfo = texelFetch(iChannel0, ivec2(0, 0), 0);
+    for (int n = 0; n < numBalls; ++n) {
+    vec4 ballInfo = texelFetch(iChannel0, ivec2(n, 0), 0);
     vec2 bc = ballInfo.xy;
-
-
     rgb += smoothstep(5.1, 5.0, length(g - bc) * 95.0) * 0.2;
+    }
     
 
     RGBA.rgba = vec4(rgb, 1.0);

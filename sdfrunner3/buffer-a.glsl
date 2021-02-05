@@ -14,7 +14,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
         return;
     }
 
-    if (IJ.x > 0) {
+    if (IJ.x >= numBalls) {
         return;
     }
 
@@ -23,13 +23,13 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     vec2 vel = rgba.zw;
 
     if (iFrame == 0 || iMouse.z > 0) {
-        pos = screenToGame(vec2(-0.8, 0.0), MYTIME, scrollSpeed);
+        pos = screenToGame(vec2(-0.7, 0.0), MYTIME, scrollSpeed);
         float drtLevC = dirtLevel(pos.x);
         vec2  drtNorm = dirtNormal(pos.x, drtLevC);
         pos.y = drtLevC;
         pos.y += 0.02;
         pos += drtNorm * 0.04;
-        vel = drtNorm;
+        vel = drtNorm * ((XY.x + 1.0) / float(numBalls));
     }
 
     vel += grv * iTimeDelta;
