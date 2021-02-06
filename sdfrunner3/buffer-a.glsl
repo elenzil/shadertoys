@@ -20,6 +20,11 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     vec4 rgba = texelFetch(iChannel0, IJ, 0);
 
+    ///////////////////////////////////////////////////////////////////////
+    // calculate rotation based on ground contact and horizontal speed.
+    // lags behind the simulation by one frame, but that's fine.
+    // rgba.x = ball theta
+    // rgba.y = ball dTheta
     if (IJ.y == 1) {
         if (iFrame == 0 || iMouse.z > 0) {
             RGBA = vec4(0.0);
@@ -29,19 +34,22 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
         vec4 rgba2 = texelFetch(iChannel0, ivec2(IJ.x, 0), 0);
 
         float drtLevC = dirtLevel(rgba2.x);
-        if (rgba2.y < drtLevC + ballRad + 0.01) {
-            ssssssss todo: needs to acount for iDeltaTime, dummy...
-            rgba.y = mix(rgba.y, rgba2.z / ballRad / PI2 / 4.0, 0.2);
+        if (rgba2.y < drtLevC + ballRad + 0.1) {
+            float targetDTheta = rgba2.z / ballRad * PI;
+            rgba.y = mix(rgba.y,  targetDTheta, 300.0 * iTimeDelta * iTimeDelta);
         }
         else {
             rgba.y *= 0.995;
         }
-        rgba.x += rgba.y;
+        rgba.x += rgba.y * iTimeDelta;
         RGBA = rgba;
 
         return;
     }
 
+
+    //////////////////////////////////////////////
+    // calculate motion
     vec2 pos = rgba.xy;
     vec2 vel = rgba.zw;
 
@@ -68,7 +76,8 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     if (pos.y < drtLevC + ballRad) {
         vec2  drtNorm = dirtNormal(pos.x, drtLevC);
         vel = reflect(vel, drtNorm);
-        vel.y *= 0.8;
+        // damping the bouncing
+        vel.y *= 0.75;
         pos.y = drtLevC + ballRad + 0.002;
     }
     
