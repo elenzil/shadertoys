@@ -20,6 +20,8 @@ void rendBall(inout vec3 rgb, in vec2 p, in vec2 c, in float r, in float theta, 
 
     float ang = atan(cp.y, cp.x);
 
+    ang += sin(dist * 300.0) * 0.05;
+
     vec3 col = vec3(sin(ang * numSpokes + theta) * 0.45 + 0.55);
 
     rgb = mix(rgb, col, smoothstep(w + 0.01, w, abs(dist - r)));
@@ -43,14 +45,16 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     float skyF = p.y * 0.5 + 0.5;
     vec3 rgb = mix(skyBot, skyTop, skyF);
 
-    rgb = rendBall(rgb, g, screenToGame(vec2(0.0, 0.0), MYTIME, scrollSpeed), 0.6, iTime * 0.91, 0.05);
-
     float drtLev = dirtLevel(g.x);
 
     // grass
-    if (g.y < drtLev + 0.015 - min(0.0, drtLev * 0.04)) {
+    if (g.y < drtLev + 0.015 - min(0.0, drtLev * 0.05)) {
         rgb = mix(rgb, vec3(0.0, 0.3, 0.0), 0.7);
     }
+
+    // wheel in the sky keeps on turning
+    vec3 tmp3 = rgb;
+    rgb = mix(tmp3, rendBall(rgb, g, screenToGame(vec2(0.0, 0.2), MYTIME, scrollSpeed), 0.6, iTime * 0.91, 0.05), 0.2);
 
     // dirt
     const vec3 drtTop = vec3(0.4, 0.2, 0.1);
