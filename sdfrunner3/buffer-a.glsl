@@ -20,6 +20,8 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     vec4 rgba = texelFetch(iChannel0, IJ, 0);
 
+    float ballRad = ballRadius(IJ.x);
+
     ///////////////////////////////////////////////////////////////////////
     // calculate rotation based on ground contact and horizontal speed.
     // lags behind the simulation by one frame, but that's fine.

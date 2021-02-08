@@ -21,7 +21,8 @@ const float PI        = 3.14159265259;
 const float PI2       = (PI * 2.0);
 
 const int numBalls = 5;
-const float ballRad = 0.05;
+const float ballRadMin = 0.04;
+const float ballRadMax = 0.06;
 
 const float scrollSpeed = 0.02;
 
@@ -29,6 +30,10 @@ const float scrollSpeed = 0.02;
 const vec2  grv        = vec2(0.0, -1.0);
 
 #define MYTIME (iTime * 3.14159 * 2.0)
+
+float ballRadius(int n) {
+    return mix(ballRadMin, ballRadMax, float(n) / float(numBalls - 1));
+}
 
 // polynomial smooth min (k = 0.1);
 float sminCubic( float a, float b, float k )

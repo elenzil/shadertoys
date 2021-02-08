@@ -71,7 +71,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
         vec4 ballInfo2 = texelFetch(iChannel0, ivec2(n, 1), 0);
         vec2 bc = ballInfo1.xy;
 //        rgb += smoothstep(5.1, 5.0, length(g - bc) * 95.0) * 0.2;
-        rgb = rendBall(rgb, g, bc, ballRad, ballInfo2.x, 0.005);
+        rgb = rendBall(rgb, g, bc, ballRadius(n), ballInfo2.x, 0.005);
     }
     
 
