@@ -49,7 +49,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     // grass
     if (g.y < drtLev + 0.015 - min(0.0, drtLev * 0.05)) {
-        rgb = mix(rgb, vec3(0.0, 0.3, 0.0), 0.7);
+        rgb = mix(rgb, vec3(0.0, sin(g.x * 250.0) * 0.1 + 0.4, 0.0), 0.7);
     }
 
     // wheel in the sky keeps on turning

@@ -81,8 +81,11 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
         // damping the bouncing
         vel.y *= 0.75;
         pos.y = drtLevC + ballRad + 0.002;
+
+        // damp horizontal speed
+        vel.x *= mix(0.95, 1.0, float(XY.x) / float(numBalls - 1));
     }
-    
+   
     RGBA = vec4(pos, vel);
 }
 
