@@ -5,7 +5,7 @@
 #include <common.glsl>
 #endif
 
-void rendBall(inout vec3 rgb, in vec2 p, in vec2 c, in float r, in float theta, in float w) {
+void rendBall(inout vec3 rgb, in vec2 p, in vec2 c, in float r, in float theta, in float w, in int style) {
 
     const float numSpokes = 4.0;
 
@@ -23,6 +23,10 @@ void rendBall(inout vec3 rgb, in vec2 p, in vec2 c, in float r, in float theta, 
     ang += sin(dist * 300.0) * 0.05;
 
     vec3 col = vec3(sin(ang * numSpokes + theta) * 0.45 + 0.55);
+
+    if (style == 2) {
+        col.rgb *= mix(vec3(0.7, 0.8, 0.3), vec3(0.2, 0.7, 0.9), sin(iTime * 2.0 * (invBallRad(r) + 1.0)) * 0.5 + 0.5);
+    }
 
     rgb = mix(rgb, col, smoothstep(w + 0.01, w, abs(dist - r)));
 
@@ -54,7 +58,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     // wheel in the sky keeps on turning
     vec3 tmp3 = rgb;
-    rgb = mix(tmp3, rendBall(rgb, g, screenToGame(vec2(0.0, 0.2), MYTIME, scrollSpeed), 0.6, iTime * 0.91, 0.05), 0.2);
+    rgb = mix(tmp3, rendBall(rgb, g, screenToGame(vec2(0.0, 0.2), MYTIME, scrollSpeed), 0.6, iTime * 0.91, 0.05, 0), 0.2);
 
     // dirt
     const vec3 drtTop = vec3(0.4, 0.2, 0.1);
@@ -71,7 +75,10 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
         vec4 ballInfo2 = texelFetch(iChannel0, ivec2(n, 1), 0);
         vec2 bc = ballInfo1.xy;
 //        rgb += smoothstep(5.1, 5.0, length(g - bc) * 95.0) * 0.2;
-        rgb = rendBall(rgb, g, bc, ballRadius(n), ballInfo2.x, 0.005);
+
+        int style = min(2, n + 1);
+
+        rgb = rendBall(rgb, g, bc, ballRadius(n), ballInfo2.x, 0.005, style);
     }
     
 

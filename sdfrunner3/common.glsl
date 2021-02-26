@@ -35,6 +35,10 @@ float ballRadius(int n) {
     return mix(ballRadMin, ballRadMax, float(n) / float(numBalls - 1));
 }
 
+float invBallRad(float r) {
+    return (r - ballRadMin) / (ballRadMax - ballRadMin);
+}
+
 // polynomial smooth min (k = 0.1);
 float sminCubic( float a, float b, float k )
 {
