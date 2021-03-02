@@ -28,7 +28,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     // rgba.x = ball theta
     // rgba.y = ball dTheta
     if (IJ.y == 1) {
-        if (iFrame == 0 || iMouse.z > 0) {
+        if (iFrame == 0) {
             RGBA = vec4(0.0);
             return;
         }
@@ -37,7 +37,11 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
         float drtLevC = dirtLevel(rgba2.x);
         if (rgba2.y < drtLevC + ballRad + 0.1) {
-            float targetDTheta = rgba2.z / ballRad * PI;
+            float velx = rgba2.z;
+            if (IJ.x == 0) {
+                velx = scrollSpeed * 8.0;
+            }
+            float targetDTheta = velx / ballRad * PI;
             rgba.y = mix(rgba.y,  targetDTheta, 300.0 * iTimeDelta * iTimeDelta);
         }
         else {
@@ -57,16 +61,29 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     if (iFrame == 0 || iMouse.z > 0) {
         pos = screenToGame(vec2(-0.7, 0.0), MYTIME, scrollSpeed);
+        if (IJ.x == 0) {
+            pos.x = screenToGame(vec2(0.0, 0.0), MYTIME, scrollSpeed).x;
+        }
         float drtLevC = dirtLevel(pos.x);
         vec2  drtNorm = dirtNormal(pos.x, drtLevC);
         pos.y = drtLevC;
         pos.y += 0.02;
-        pos += drtNorm * 0.04;
-        vel = drtNorm * ((XY.x + 1.0) / float(numBalls));
+    //    pos += drtNorm * 0.04;
+      //  vel = drtNorm * ((XY.x + 1.0) / float(numBalls));
+
+        if (IJ.x == 0) {
+            pos.y = drtLevC;
+            pos.y += 0.02;
+            vel = vec2(0.0, 1.3);
+        }
     }
 
     vel += grv * iTimeDelta;
     pos += vel * iTimeDelta;
+
+    if (IJ.x == 0) {
+        pos.x = screenToGame(vec2(-0.2, 0.0), MYTIME, scrollSpeed).x;
+    }
 
     vec2 distPast = screenToGame(vec2(0.0, 0.0), MYTIME, scrollSpeed) - pos;
     vel.x += sqrt(max(0.0, distPast.x - 0.9)) * 0.2;
