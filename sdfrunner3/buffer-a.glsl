@@ -1,108 +1,63 @@
 /////////////////////////
-// this buffer is the dynamics, based on the SDF
+//
+// dynamics.
+// for each object:
+// d1 = ivec2(n * 2, n * 2    )
+// d2 = ivec2(n * 2, n * 2 + 1)
+//
+// d1.xy = particle position
+// d1.z  = particle theta
+// d1.w  = particle radius
+//
+// d2.xy = particle velocity (dPosition)
+// d2.z  = angular speed     (dTheta)
+// d2.w  = unused
+//
+
+
 
 #ifdef GRIMOIRE
 #include <common.glsl>
 #endif
 
+const float playerOffsetX = -0.2;
+const float playerRad     =  0.02;
+
 void mainImage(out vec4 RGBA, in vec2 XY) {
-    ivec2 IJ = ivec2(XY);
 
-    RGBA *= 0.0;
+    ivec2  IJ = ivec2(XY);
+    int     n = IJ.x;
+    vec4   d1 = texelFetch(iChannel0, ivec2(n, 0), 0);
+    vec4   d2 = texelFetch(iChannel0, ivec2(n, 1), 0);
+    vec2  pos = d1.xy;
+    vec2  vel = d2.xy;
+    float ang = d1.z;
+    float avl = d2.z;
+    float rad = d1.w;
 
-    if (IJ.y > 1) {
-        return;
-    }
-
-    if (IJ.x >= numBalls) {
-        return;
-    }
-
-    vec4 rgba = texelFetch(iChannel0, IJ, 0);
-
-    float ballRad = ballRadius(IJ.x);
-
-    ///////////////////////////////////////////////////////////////////////
-    // calculate rotation based on ground contact and horizontal speed.
-    // lags behind the simulation by one frame, but that's fine.
-    // rgba.x = ball theta
-    // rgba.y = ball dTheta
-    if (IJ.y == 1) {
-        if (iFrame == 0) {
-            RGBA = vec4(0.0);
-            return;
-        }
-
-        vec4 rgba2 = texelFetch(iChannel0, ivec2(IJ.x, 0), 0);
-
-        float drtLevC = dirtLevel(rgba2.x);
-        if (rgba2.y < drtLevC + ballRad + 0.1) {
-            float velx = rgba2.z;
-            if (IJ.x == 0) {
-                velx = scrollSpeed * 8.0;
-            }
-            float targetDTheta = velx / ballRad * PI;
-            rgba.y = mix(rgba.y,  targetDTheta, 300.0 * iTimeDelta * iTimeDelta);
+    if (iFrame == 0) {
+        pos = screenToGame(vec2(playerOffsetX, 0.0), MYTIME, scrollSpeed);
+        vel = vec2(0.0);
+        ang = 0.0;
+        avl = 0.0;
+        if (n == 0) {
+            rad = playerRad;
         }
         else {
-            rgba.y *= 0.995;
-        }
-        rgba.x += rgba.y * iTimeDelta;
-        RGBA = rgba;
-
-        return;
-    }
-
-
-    //////////////////////////////////////////////
-    // calculate motion
-    vec2 pos = rgba.xy;
-    vec2 vel = rgba.zw;
-
-    if (iFrame == 0 || iMouse.z > 0) {
-        pos = screenToGame(vec2(-0.7, 0.0), MYTIME, scrollSpeed);
-        if (IJ.x == 0) {
-            pos.x = screenToGame(vec2(0.0, 0.0), MYTIME, scrollSpeed).x;
-        }
-        float drtLevC = dirtLevel(pos.x);
-        vec2  drtNorm = dirtNormal(pos.x, drtLevC);
-        pos.y = drtLevC;
-        pos.y += 0.02;
-    //    pos += drtNorm * 0.04;
-      //  vel = drtNorm * ((XY.x + 1.0) / float(numBalls));
-
-        if (IJ.x == 0) {
-            pos.y = drtLevC;
-            pos.y += 0.02;
-            vel = vec2(0.0, 1.3);
+            // radius 0 means no render.
+            rad = 0.0;
         }
     }
 
-    vel += grv * iTimeDelta;
-    pos += vel * iTimeDelta;
+    float drtLev    = dirtLevel(pos.x);
+    float drtLevRad = drtLev + rad;
 
-    if (IJ.x == 0) {
-        pos.x = screenToGame(vec2(-0.2, 0.0), MYTIME, scrollSpeed).x;
+    if (n == 0) {
+        pos.y = drtLevRad;
     }
 
-    vec2 distPast = screenToGame(vec2(0.0, 0.0), MYTIME, scrollSpeed) - pos;
-    vel.x += sqrt(max(0.0, distPast.x - 0.9)) * 0.2;
-    vel.y +=      max(0.0, distPast.x - 0.9)  * 0.4;
-    
-  
-    float drtLevC = dirtLevel(pos.x);
 
-    if (pos.y < drtLevC + ballRad) {
-        vec2  drtNorm = dirtNormal(pos.x, drtLevC);
-        vel = reflect(vel, drtNorm);
-        // damping the bouncing
-        vel.y *= 0.75;
-        pos.y = drtLevC + ballRad + 0.002;
 
-        // damp horizontal speed
-        vel.x *= mix(0.95, 1.0, float(XY.x) / float(numBalls - 1));
-    }
-   
     RGBA = vec4(pos, vel);
 }
 
