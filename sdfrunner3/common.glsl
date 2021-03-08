@@ -20,7 +20,7 @@
 const float PI        = 3.14159265259;
 const float PI2       = (PI * 2.0);
 
-const int numBalls = 5;
+const int numBalls = 1;
 const float ballRadMin = 0.04;
 const float ballRadMax = 0.06;
 

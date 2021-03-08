@@ -2,8 +2,8 @@
 //
 // dynamics.
 // for each object:
-// d1 = ivec2(n * 2, n * 2    )
-// d2 = ivec2(n * 2, n * 2 + 1)
+// d1 = ivec2(n, 0)
+// d2 = ivec2(n, 1)
 //
 // d1.xy = particle position
 // d1.z  = particle theta
@@ -21,7 +21,7 @@
 #endif
 
 const float playerOffsetX = -0.2;
-const float playerRad     =  0.02;
+const float playerRad     =  0.05;
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
 
@@ -35,7 +35,8 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     float avl = d2.z;
     float rad = d1.w;
 
-    if (iFrame == 0) {
+    // decode
+    if (iFrame == 0 || iMouse.z > 1.0) {
         pos = screenToGame(vec2(playerOffsetX, 0.0), MYTIME, scrollSpeed);
         vel = vec2(0.0);
         ang = 0.0;
@@ -49,16 +50,26 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
         }
     }
 
-    float drtLev    = dirtLevel(pos.x);
-    float drtLevRad = drtLev + rad;
+    vec2 newPos;
 
     if (n == 0) {
-        pos.y = drtLevRad;
+        newPos   = screenToGame(vec2(playerOffsetX, 0.0), MYTIME, scrollSpeed);
+        float drtLev    = dirtLevel(pos.x);
+        float drtLevRad = drtLev + rad;
+        newPos.y = drtLev + playerRad;
+    }
+    else {
+        newPos = pos;
     }
 
+    vel = newPos - pos;
 
-
-    RGBA = vec4(pos, vel);
+    if (IJ.y == 0) {
+        RGBA = vec4(newPos, ang, rad);
+    }
+    else {
+        RGBA = vec4(vel, avl, 0.0);
+    }
 }
 
 #ifdef GRIMOIRE

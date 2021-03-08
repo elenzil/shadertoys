@@ -72,13 +72,18 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
 
     for (int n = 0; n < numBalls; ++n) {
         vec4 ballInfo1 = texelFetch(iChannel0, ivec2(n, 0), 0);
-        vec4 ballInfo2 = texelFetch(iChannel0, ivec2(n, 1), 0);
-        vec2 bc = ballInfo1.xy;
-//        rgb += smoothstep(5.1, 5.0, length(g - bc) * 95.0) * 0.2;
+        vec2  pos = ballInfo1.xy;
+        float ang = ballInfo1.z;
+        float rad = ballInfo1.w;
 
         int style = min(2, n + 1);
 
-        rgb = rendBall(rgb, g, bc, ballRadius(n), ballInfo2.x, 0.005, style);
+        style = 0;
+
+//        pos = screenToGame(vec2(0.0, 0.0), MYTIME, scrollSpeed);
+//        rad = 0.1;
+
+        rgb = rendBall(rgb, g, pos, rad, ang, 0.005, style);
     }
     
 
