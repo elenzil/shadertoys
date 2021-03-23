@@ -2,7 +2,7 @@
 #include <common.glsl>
 #endif
 
-const int   cellSize = 50;
+const int   cellSize = 100;
 const float cellZoom = 1.0 / 0.4;  // larger = smaller cell contents
 
 const float smoothEpsilon = 5.0 / cellSize;
@@ -117,15 +117,17 @@ float map(vec2 xy, int patternID) {
 
 vec3 fillCell(vec2 p, int patternID) {
     vec2  pz     = p * cellZoom;
+    pz.x += cos(p.y * 3.14159 * 2.0 + iTime) * 0.15;
+    pz.y += cos(p.x * 3.14159 * 2.0 + iTime) * 0.15;
     float d      = map(pz, patternID);
     vec3  rgb    = vec3(smst(d));
     rgb.g = max(rgb.g, smst(1.0 - max(abs(p.x), abs(p.y))));
     return vec3(rgb);
 }
 
-int getPatternID(bool u, bool l, bool d, bool r) {
-    return r << 6 | d << 4 | l << 2 | u;
-}
+// int getPatternID(bool u, bool l, bool d, bool r) {
+//     return int(r << 6 | d << 4 | l << 2 | u;
+// }
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
     ivec2 IJ = ivec2(XY);
@@ -133,7 +135,11 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     ivec2 NM = IJ / cellSize;
     vec2  p  = vec2(IJ - (NM * cellSize)) / float(cellSize) * 2.0 - 1.0;
 
-    vec3 rgb = fillCell(p, NM.x + NM.y * 16);
+    int patternID = NM.x + NM.y * 16;
+
+    patternID = patternID % 0xff;
+
+    vec3 rgb = fillCell(p, patternID);
 
     if (max(NM.x, NM.y) > 16) {
             rgb *= 0.0;
