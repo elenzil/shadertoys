@@ -142,7 +142,7 @@ vec3 fillCell(vec2 p, int patternID) {
     #endif
 
     // green cell borders
-    rgb.g = max(rgb.g, smst(1.0 - max(abs(p.x), abs(p.y))));
+    rgb.g = max(rgb.g, 0.75 * smst(1.0 - max(abs(p.x), abs(p.y))));
 
     return vec3(rgb);
 }
