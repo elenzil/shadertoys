@@ -8,6 +8,6 @@ mat2 rot2(float theta) {
     return mat2(c, s, -s, c);
 }
 
+/////////////////////////////////////////////////////////////////////
 
-
-
+const int   cellSize = 66;

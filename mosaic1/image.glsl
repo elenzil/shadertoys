@@ -2,7 +2,6 @@
 #include <common.glsl>
 #endif
 
-const int   cellSize = 100;
 const float cellZoom = 1.0 / 0.4;  // larger = smaller cell contents
 
 const float smoothEpsilon = 5.0 / cellSize;
@@ -68,7 +67,9 @@ float map(vec2 xy, int patternID) {
     vec2 yX = vec2( xy.y, -xy.x);
 
     switch (patternID) {
-        default:   return 2.0;
+        case -1: return 2.0;
+        default: return 2.0;
+
 
         /////////////////////////////////////////////////
         // core simple patterns
@@ -115,33 +116,47 @@ float map(vec2 xy, int patternID) {
     }
 }
 
+bool wiggle = false;
+
 vec3 fillCell(vec2 p, int patternID) {
     vec2  pz     = p * cellZoom;
-    pz.x += cos(p.y * 3.14159 * 2.0 + iTime) * 0.15;
-    pz.y += cos(p.x * 3.14159 * 2.0 + iTime) * 0.15;
+    if (wiggle) {
+        pz.x += cos(p.y * 3.14159 * 2.0 + iTime) * 0.15;
+        pz.y += cos(p.x * 3.14159 * 2.0 + iTime) * 0.15;
+    }
     float d      = map(pz, patternID);
     vec3  rgb    = vec3(smst(d));
     rgb.g = max(rgb.g, smst(1.0 - max(abs(p.x), abs(p.y))));
     return vec3(rgb);
 }
 
-// int getPatternID(bool u, bool l, bool d, bool r) {
-//     return int(r << 6 | d << 4 | l << 2 | u;
-// }
+int fetchPattern(ivec2 NM) {
+    const ivec2 offset = ivec2(0, 1);
+
+    float c = texelFetch(iChannel0, NM + offset, 0).x;
+
+    if (c == 0) {
+        return -1;
+    }
+
+    return 0;
+}
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
     ivec2 IJ = ivec2(XY);
-
     ivec2 NM = IJ / cellSize;
     vec2  p  = vec2(IJ - (NM * cellSize)) / float(cellSize) * 2.0 - 1.0;
 
     int patternID = NM.x + NM.y * 16;
 
-    patternID = patternID % 0xff;
+    patternID = patternID % 0x100;
+
+    patternID = fetchPattern(NM);
+
 
     vec3 rgb = fillCell(p, patternID);
 
-    if (max(NM.x, NM.y) > 16) {
+    if (max(NM.x, NM.y) >= 16) {
             rgb *= 0.0;
     }
 
