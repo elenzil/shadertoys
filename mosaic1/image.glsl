@@ -2,7 +2,8 @@
 #include <common.glsl>
 #endif
 
-const float cellZoom = 1.0 / 0.4;  // larger = smaller cell contents
+// larger = smaller cell contents
+float cellZoom;
 
 const float smoothEpsilon = 5.0 / cellSize;
 const float smoothLimA    = +smoothEpsilon;
@@ -30,7 +31,7 @@ float map_leftHalf(vec2 p) {
 
 // a circle
 float map_0000_0000(vec2 p) {
-    return dot(p, p) - 1.0;
+    return length(p) - 1.0;
 }
 
 // a vertical bar
@@ -40,7 +41,8 @@ float map_0001_0001(vec2 p) {
 
 // 4-way intersection
 float map_0101_0101(vec2 p) {
-    return opUnn(map_0001_0001(p), map_0001_0001(p.yx));
+   // return opUnn(map_0001_0001(p), map_0001_0001(p.yx));
+   return 1.0 - length(abs(p) - 2.0);
 }
 
 // a cul-de-sac going upwards
@@ -50,12 +52,14 @@ float map_0000_0001(vec2 p) {
 
 // an elbow top to right
 float map_0100_0001(vec2 p) {
-    return opUnn(map_0000_0001(p), map_0000_0001(p.yx));
+    float d = opUnn(map_0000_0001(p), map_0000_0001(p.yx));
+    d = opUnn(d, opInt(opInt(-p.x, -p.y), 1.0 - length(p - 2.0)));
+    return d;
 }
 
 // a T with trunk to the right
 float map_0101_0001(vec2 p) {
-    return opUnn(map_0001_0001(p), map_0000_0001(p.yx));
+    return opUnn(map_0100_0001(p), map_0100_0001(vec2(-p.y, p.x)));
 }
 
 float map(vec2 xy, int patternID) {
@@ -96,9 +100,9 @@ float map(vec2 xy, int patternID) {
         // reflection & rotations of the simple patterns
 
         // end
-        case 0x02: return map_0000_0001(yX); // 0000_0010
-        case 0x04: return map_0000_0001(xY); // 0000_0100
-        case 0x08: return map_0000_0001(yx); // 0000_1000
+        case 0x04: return map_0000_0001(yX); // 0000_0100
+        case 0x10: return map_0000_0001(xY); // 0001_0000
+        case 0x40: return map_0000_0001(yx); // 0100_0000
 
         // pipe
         case 0x44: return map_0001_0001(yx); // 0100_0100
@@ -121,25 +125,44 @@ bool wiggle = false;
 vec3 fillCell(vec2 p, int patternID) {
     vec2  pz     = p * cellZoom;
     if (wiggle) {
-        pz.x += cos(p.y * 3.14159 * 2.0 + iTime) * 0.15;
-        pz.y += cos(p.x * 3.14159 * 2.0 + iTime) * 0.15;
+        pz.x += cos(p.y * 3.14159 * 1.0 + iTime) * 0.1;
+        pz.y += cos(p.x * 3.14159 * 1.0 + iTime) * 0.1;
     }
+
+    // a distance from boundary
     float d      = map(pz, patternID);
+
+    #if 0
+    vec3  rgb    = vec3(sin(d * 6.0) * 0.25 + 0.5);
+    if (d > 0) {
+        rgb.rb *= 0.5;
+        rgb.g   = 0.0;
+    }
+    #else
     vec3  rgb    = vec3(smst(d));
+    #endif
+
+    // green cell borders
     rgb.g = max(rgb.g, smst(1.0 - max(abs(p.x), abs(p.y))));
+
     return vec3(rgb);
 }
 
 int fetchPattern(ivec2 NM) {
-    const ivec2 offset = ivec2(0, 1);
+    NM.y += 1;
 
-    float c = texelFetch(iChannel0, NM + offset, 0).x;
+    float c = texelFetch(iChannel0, NM, 0).x;
 
     if (c == 0) {
         return -1;
     }
 
-    return 0;
+    int u = int(texelFetch(iChannel0, NM + ivec2( 0,  1), 0).x);
+    int d = int(texelFetch(iChannel0, NM + ivec2( 0, -1), 0).x);
+    int l = int(texelFetch(iChannel0, NM + ivec2(-1,  0), 0).x);
+    int r = int(texelFetch(iChannel0, NM + ivec2( 1,  0), 0).x);
+
+    return u | l << 2 | d << 4 | r << 6;
 }
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
@@ -147,18 +170,11 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     ivec2 NM = IJ / cellSize;
     vec2  p  = vec2(IJ - (NM * cellSize)) / float(cellSize) * 2.0 - 1.0;
 
-    int patternID = NM.x + NM.y * 16;
+    cellZoom = 2.0;
 
-    patternID = patternID % 0x100;
-
-    patternID = fetchPattern(NM);
-
+    int patternID = fetchPattern(NM);
 
     vec3 rgb = fillCell(p, patternID);
-
-    if (max(NM.x, NM.y) >= 16) {
-            rgb *= 0.0;
-    }
 
 
     RGBA.rgba = vec4(rgb, 1.0);

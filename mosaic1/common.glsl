@@ -10,4 +10,4 @@ mat2 rot2(float theta) {
 
 /////////////////////////////////////////////////////////////////////
 
-const int   cellSize = 66;
+const int   cellSize = 50;
