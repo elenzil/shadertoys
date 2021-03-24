@@ -41,7 +41,6 @@ float map_0001_0001(vec2 p) {
 
 // 4-way intersection
 float map_0101_0101(vec2 p) {
-   // return opUnn(map_0001_0001(p), map_0001_0001(p.yx));
    return 1.0 - length(abs(p) - 2.0);
 }
 
@@ -59,7 +58,7 @@ float map_0100_0001(vec2 p) {
 
 // a T with trunk to the right
 float map_0101_0001(vec2 p) {
-    return opUnn(map_0100_0001(p), map_0100_0001(vec2(-p.y, p.x)));
+    return map_0100_0001(vec2(p.x, abs(p.y)));
 }
 
 float map(vec2 xy, int patternID) {
