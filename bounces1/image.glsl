@@ -127,31 +127,31 @@ vec3 shade(in vec3 ro, in vec3 rd, in float t, in int bouncesLeft) {
 
 void mainImage( out vec4 RGBA, in vec2 XY )
 {
-    setupCoords(iResolution.xy, 1.0);
+    setupCoords(iResolution.xy, 0.98);
     setupTime(iTime);
     vec2 uv    = worldFromScreen(XY);
     vec2 ms    = worldFromScreen(iMouse.xy);
 
     // look-from and look-to points
     // right-handed system where x is right, y is up, z is forward.
-    vec3 camPt = vec3(cos(gTime * 0.1), 0.2, sin(gTime * 0.1)) * 2.0;
+    vec3 camPt = vec3(cos(gTime * 0.1), 0.0, sin(gTime * 0.1)) * 3.0;
     vec3 trgPt = vec3(0.0, 0.0, 0.0);
 
     // camera's forward, right, and up vectors. right-handed.
-    vec3 camFw = trgPt - camPt;
+    vec3 camFw = normalize(trgPt - camPt);
     vec3 camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
     vec3 camUp = cross(camRt, camFw);
 
     // ray origin and direction
     vec3 ro    = camPt;
     vec3 rd    = normalize(camFw + uv.x * camRt + uv.y * camUp);
-
-    
     
     const int maxSteps = 100;
     
     float t = march(ro, rd);
     vec3 col = shade(ro, rd, t, 17);
+
+    col *= smoothstep(-0.01, 0.01, abs(length(uv) - 1.0));
     
     RGBA = vec4(col, 1.0);
 }
@@ -162,7 +162,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
 
 vec3 sky(in vec3 rd) {
     vec3 col = rd * 0.5 + 0.5;
-    col /= max(col.r, max(col.g, col.b));
+    col = mix(col, col / max(col.r, max(col.g, col.b)), 0.2);
     col *= rd.y < 0.0 ? 0.9 : 1.0;
     return col;
 }
