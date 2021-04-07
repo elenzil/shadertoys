@@ -129,8 +129,10 @@ void mainImage( out vec4 RGBA, in vec2 XY )
 {
     setupCoords(iResolution.xy, 0.98);
     setupTime(iTime);
-    vec2 uv    = worldFromScreen(XY);
-    vec2 ms    = worldFromScreen(iMouse.xy);
+    vec2  uv        = worldFromScreen(XY);
+    float luv       = length(uv);
+    vec2  ms        = worldFromScreen(iMouse.xy);
+    float smoothEps = gWorldFromScreenFac * 2.0;
 
     // look-from and look-to points
     // right-handed system where x is right, y is up, z is forward.
@@ -142,16 +144,21 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     vec3 camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
     vec3 camUp = cross(camRt, camFw);
 
+    // mess with camPt, just for fun
+    float messFac = luv < 1.0 ? 0.0 : 2.0 * (luv - 1.0);
+    camPt += camFw * messFac;
+
     // ray origin and direction
     vec3 ro    = camPt;
-    vec3 rd    = normalize(camFw + uv.x * camRt + uv.y * camUp);
+    vec3 rd    = normalize(camFw + uv.x * camRt / (1.0 + messFac * 1.0) + uv.y * camUp / (1.0 + messFac * 1.0));
     
     const int maxSteps = 100;
     
     float t = march(ro, rd);
     vec3 col = shade(ro, rd, t, 17);
 
-    col *= smoothstep(-0.01, 0.01, abs(length(uv) - 1.0));
+    col *= 1.0 - 0.1 * smoothstep(-smoothEps, smoothEps, luv - 1.0) * pow(luv, 1.5);
+    col *= 1.0 + smoothstep(smoothEps, -smoothEps, abs(luv - 1.0));
     
     RGBA = vec4(col, 1.0);
 }
