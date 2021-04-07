@@ -11,21 +11,15 @@ float opUnion(in float a, in float b);
 float opMinus(in float a, in float b);
 float opIntsc(in float a, in float b);
 
-float sdSphere(in vec3 p, in vec3 c, in float r) {
-    return length(p - c) - r;
-}
-
-float sdCylZ(in vec3 p, in vec3 c, in float r) {
-    return length(p.xy - c.xy) - r;
-}
-
-float sdCylY(in vec3 p, in vec3 c, in float r) {
-    return length(p.xz - c.xz) - r;
-}
+float sdSphere(in vec3 p, in vec3 c, in float r);
+float sdCylZ(in vec3 p, in vec3 c, in float r);
+float sdCylY(in vec3 p, in vec3 c, in float r);
 
 float map(in vec3 p) {
 
     float d = 1e9;
+
+    p.y *= -1.0;
     
     vec3 p1 = p;
     vec3 p2 = p;
@@ -133,25 +127,25 @@ vec3 shade(in vec3 ro, in vec3 rd, in float t, in int bouncesLeft) {
 
 void mainImage( out vec4 RGBA, in vec2 XY )
 {
-    setupCoords(iResolution.xy, 0.78);
+    setupCoords(iResolution.xy, 1.0);
     setupTime(iTime);
+    vec2 uv    = worldFromScreen(XY);
+    vec2 ms    = worldFromScreen(iMouse.xy);
 
-    // pixel epsilon for smoothstep
-    float smoothEps = gWorldFromScreenFac * 2.5;
+    // look-from and look-to points
+    // right-handed system where x is right, y is up, z is forward.
+    vec3 camPt = vec3(cos(gTime * 0.1), 0.2, sin(gTime * 0.1)) * 2.0;
+    vec3 trgPt = vec3(0.0, 0.0, 0.0);
 
-    
-    // draw something
-    
-    vec2 uv = worldFromScreen(XY);
-    vec2 ms = worldFromScreen(iMouse.xy);
-    
-    vec3 cp = vec3(cos(gTime * 0.1), -0.2, sin(gTime * 0.1)) * 4.0;
-    vec3 lt = vec3(0.0, 0.5, 0.0);
-    vec3 cf = normalize(lt - cp);
-    vec3 cr = cross(cf, vec3(0.0, 1.0, 0.0));
-    vec3 cu = cross(cf, cr);
-    vec3 ro = cp;
-    vec3 rd = normalize(cf + (cr * uv.x + cu * uv.y) * 0.4);
+    // camera's forward, right, and up vectors. right-handed.
+    vec3 camFw = trgPt - camPt;
+    vec3 camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
+    vec3 camUp = cross(camRt, camFw);
+
+    // ray origin and direction
+    vec3 ro    = camPt;
+    vec3 rd    = normalize(camFw + uv.x * camRt + uv.y * camUp);
+
     
     
     const int maxSteps = 100;
@@ -197,6 +191,18 @@ float opMinus(in float a, in float b) {
 
 float opIntsc(in float a, in float b) {
     return max(a, b);
+}
+
+float sdSphere(in vec3 p, in vec3 c, in float r) {
+    return length(p - c) - r;
+}
+
+float sdCylZ(in vec3 p, in vec3 c, in float r) {
+    return length(p.xy - c.xy) - r;
+}
+
+float sdCylY(in vec3 p, in vec3 c, in float r) {
+    return length(p.xz - c.xz) - r;
 }
 
 
