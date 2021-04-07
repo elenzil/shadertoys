@@ -155,9 +155,11 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     const int maxSteps = 100;
     
     float t = march(ro, rd);
-    vec3 col = shade(ro, rd, t, 17);
+    vec3 col = shade(ro, rd, t, 5);
 
-    col *= 1.0 - 0.1 * smoothstep(-smoothEps, smoothEps, luv - 1.0) * pow(luv, 1.5);
+    float outCircle = smoothstep(-smoothEps, smoothEps, luv - 1.0);
+    col *= 1.0 - 0.1 * outCircle * pow(luv, 1.5);
+    col = mix(col, vec3(col.x + col.y + col.z) / 6.0, outCircle * clamp(0.0, 1.0, 2.0 * (luv - 1.0)));
     col *= 1.0 + smoothstep(smoothEps, -smoothEps, abs(luv - 1.0));
     
     RGBA = vec4(col, 1.0);
