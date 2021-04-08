@@ -88,41 +88,48 @@ vec3 ambient(in vec3 n) {
     return sky(-n);
 }
 
-vec3 shade(in vec3 ro, in vec3 rd, in float t, in int bouncesLeft) {
+
+float calcDiffuseAmount(in vec3 p, in vec3 n) {
+    vec3 lightDirection = normalize(vec3(-1.0));
+    float ret = dot(n, -lightDirection);
+    return ret;
+}
+
+float maxPart(in vec3 v) {
+    return max(v.x, max(v.y, v.z));
+}
+
+vec3 render(in vec3 ro, in vec3 rd) {
+
     vec3 col = vec3(0.0);
-    float acc = 0.0;
-    
-    vec3 p = ro;
-    
-    while (bouncesLeft > 0) {
-        p += rd * t;
-        
+
+    int bouncesLeft = 3;
+
+    vec3 contributionLeft = vec3(1.0);
+
+    while (bouncesLeft > 0 && maxPart(contributionLeft) > 0.001) {
         bouncesLeft -= 1;
-        
-        if (t > 100.0) {
-            col += sky(rd);
-            acc += 1.0;
+        float t = march(ro, rd);
+        vec3 p = ro + t * rd;
+        if (length(p) > 100.0) {
+            col += sky(rd) * contributionLeft;
             break;
         }
-        else {
-            vec3 n = calcNormal(p);
-            col += diffuse(n) * 3.0;
-            acc += 3.0;
-            
-            float fres = 1.0 - (dot(n, rd) * 0.5 + 0.5);
-            acc += 1.0 - fres;
-            
-            rd = reflect(rd, n);
-            
-            t = march(p + n * closeEps * 5.0, rd);
-            
-        }
+
+        const vec3 albedo = vec3(0.2);
+
+        vec3 n = calcNormal(p);
+        vec3 dif = calcDiffuseAmount(p, n) * albedo;
+
+        const vec3 reflectAmount = vec3(0.2);
+        col += dif * (1.0 - reflectAmount) * contributionLeft;
+        contributionLeft *= reflectAmount;
+
+        ro = p + n * 0.001;
+        rd = reflect(rd, n);
     }
-    
-    col /= acc;
-    
+
     return col;
-    
 }
 
 void mainImage( out vec4 RGBA, in vec2 XY )
@@ -154,8 +161,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     
     const int maxSteps = 100;
     
-    float t = march(ro, rd);
-    vec3 col = shade(ro, rd, t, 5);
+    vec3 col = render(ro, rd);
 
     float outCircle = smoothstep(-smoothEps, smoothEps, luv - 1.0);
     col *= 1.0 - 0.1 * outCircle * pow(luv, 1.5);
