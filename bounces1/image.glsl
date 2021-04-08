@@ -103,11 +103,11 @@ vec3 render(in vec3 ro, in vec3 rd) {
 
     vec3 col = vec3(0.0);
 
-    int bouncesLeft = 3;
+    int bouncesLeft = 4;
 
     vec3 contributionLeft = vec3(1.0);
 
-    while (bouncesLeft > 0 && maxPart(contributionLeft) > 0.001) {
+    while (bouncesLeft > 0 && maxPart(contributionLeft) > 0.01) {
         bouncesLeft -= 1;
         float t = march(ro, rd);
         vec3 p = ro + t * rd;
@@ -116,12 +116,14 @@ vec3 render(in vec3 ro, in vec3 rd) {
             break;
         }
 
-        const vec3 albedo = vec3(0.2);
+        vec3 albedo = vec3(0.4) * (sin(gTime * 0.44) * 0.5 + 0.5);
 
         vec3 n = calcNormal(p);
         vec3 dif = calcDiffuseAmount(p, n) * albedo;
 
-        const vec3 reflectAmount = vec3(0.2);
+        float fres = 1.0 - abs(dot(rd, n));
+        vec3 reflectAmount = vec3(0.7, 0.6, 0.0) * (sin(gTime * 0.3) * 0.5 + 0.5);;
+        reflectAmount *= fres;
         col += dif * (1.0 - reflectAmount) * contributionLeft;
         contributionLeft *= reflectAmount;
 
