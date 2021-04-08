@@ -15,7 +15,10 @@ float sdSphere(in vec3 p, in vec3 c, in float r);
 float sdCylZ(in vec3 p, in vec3 c, in float r);
 float sdCylY(in vec3 p, in vec3 c, in float r);
 
+float gMapCalls;
+
 float map(in vec3 p) {
+    gMapCalls += 1.0;
 
     float d = 1e9;
 
@@ -51,7 +54,7 @@ vec3 calcNormal( in vec3 p ) // for function f(p)
     return normalize(n);
 }
 
-const float closeEps = 0.0001;
+const float closeEps = 0.0005;
 
 float march(in vec3 ro, in vec3 rd) {
     const int maxSteps = 100;
@@ -65,34 +68,25 @@ float march(in vec3 ro, in vec3 rd) {
             return t;
         }
         t += d * 0.9;
-        if (t > 150.0) {
+        if (t > 450.0) {
             return t;
         }
     }
     return t;
 }
 
-vec3 diffuse(in vec3 n) {
-    vec3 d1 = vec3(1.0, 1.0, 0.5) * (0.5 + 0.5 * dot(normalize(vec3( 0.0,  1.0, 0.0)), n));
-    vec3 d2 = vec3(0.5, 1.0, 1.0) * (0.5 + 0.5 * dot(normalize(vec3(-1.0,  0.0, 0.0)), n));
-    vec3 d3 = vec3(1.0, 1.0, 1.0) * (0.5 + 0.5 * dot(normalize(vec3( 1.0,  0.0, 0.0)), n));
-    vec3 col = vec3(0.0);
-    col += d1;
-  //  col += d2;
-    col += d3;
-    col /= 3.0;
-    return col;
-}
-
-vec3 ambient(in vec3 n) {
-    return sky(-n);
-}
-
-
 float calcDiffuseAmount(in vec3 p, in vec3 n) {
     vec3 lightDirection = normalize(vec3(-1.0));
     float ret = dot(n, -lightDirection);
     return ret;
+}
+
+const float AOFactorMin = 0.5;
+const float AOFactorMax = 1.0;
+float calcAOFactor(in vec3 p, in vec3 n) {
+    const float sampleDist = 0.2;
+    float dist = smoothstep(0.0, sampleDist, map(p + n * sampleDist));
+    return mix(AOFactorMin, AOFactorMax, (dist));
 }
 
 float maxPart(in vec3 v) {
@@ -103,11 +97,14 @@ vec3 render(in vec3 ro, in vec3 rd) {
 
     vec3 col = vec3(0.0);
 
-    int bouncesLeft = 4;
+    int bouncesLeft = 3;
 
     vec3 contributionLeft = vec3(1.0);
 
-    while (bouncesLeft > 0 && maxPart(contributionLeft) > 0.01) {
+    vec3 albedo = vec3(0.4) * (sin(gTime * 0.44) * 0.2 + 0.8);
+    vec3 reflectAmount = vec3(0.7, 0.6, 0.0) * (sin(gTime * 0.3) * 0.5 + 0.5);
+
+    while (bouncesLeft > 0 && maxPart(contributionLeft) > 0.0) {
         bouncesLeft -= 1;
         float t = march(ro, rd);
         vec3 p = ro + t * rd;
@@ -116,18 +113,17 @@ vec3 render(in vec3 ro, in vec3 rd) {
             break;
         }
 
-        vec3 albedo = vec3(0.4) * (sin(gTime * 0.44) * 0.5 + 0.5);
 
         vec3 n = calcNormal(p);
         vec3 dif = calcDiffuseAmount(p, n) * albedo;
+        dif *= calcAOFactor(p, n);
 
-        float fres = 1.0 - abs(dot(rd, n));
-        vec3 reflectAmount = vec3(0.7, 0.6, 0.0) * (sin(gTime * 0.3) * 0.5 + 0.5);;
+        float fres = 1.0 - abs(dot(rd, n)) * 0.7;
         reflectAmount *= fres;
         col += dif * (1.0 - reflectAmount) * contributionLeft;
         contributionLeft *= reflectAmount;
 
-        ro = p + n * 0.001;
+        ro = p + n * 0.05;
         rd = reflect(rd, n);
     }
 
@@ -145,8 +141,10 @@ void mainImage( out vec4 RGBA, in vec2 XY )
 
     // look-from and look-to points
     // right-handed system where x is right, y is up, z is forward.
-    vec3 camPt = vec3(cos(gTime * 0.1), 0.0, sin(gTime * 0.1)) * 3.0;
-    vec3 trgPt = vec3(0.0, 0.0, 0.0);
+    float dt = 0.5;
+    float t = gTime * 0.23;
+    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 0.7, sin(t)) * 3.0;
+    vec3 trgPt = vec3(0.0);
 
     // camera's forward, right, and up vectors. right-handed.
     vec3 camFw = normalize(trgPt - camPt);
@@ -163,12 +161,16 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     
     const int maxSteps = 100;
     
+    gMapCalls = 0.0;
+
     vec3 col = render(ro, rd);
 
     float outCircle = smoothstep(-smoothEps, smoothEps, luv - 1.0);
     col *= 1.0 - 0.1 * outCircle * pow(luv, 1.5);
     col = mix(col, vec3(col.x + col.y + col.z) / 6.0, outCircle * clamp(0.0, 1.0, 2.0 * (luv - 1.0)));
     col *= 1.0 + smoothstep(smoothEps, -smoothEps, abs(luv - 1.0));
+
+  //  col.r = gMapCalls / 200.0;
     
     RGBA = vec4(col, 1.0);
 }
