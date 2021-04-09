@@ -10,35 +10,58 @@ vec3 directionToColor(in vec3 dir);
 float opUnion(in float a, in float b);
 float opMinus(in float a, in float b);
 float opIntsc(in float a, in float b);
+float opUnion2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b);
+float opMinus2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b);
+float opIntsc2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b);
 
-float sdSphere(in vec3 p, in vec3 c, in float r);
+float sdSphere(in vec3 p, in float r);
 float sdCylZ(in vec3 p, in vec3 c, in float r);
 float sdCylY(in vec3 p, in vec3 c, in float r);
 
 float gMapCalls;
 
+#define FOO                                               \
+    gMapCalls += 1.0;                                     \
+    float d = 1e9;                                        \
+    p.y *= -1.0;                                          \
+    vec3 P;                                               \
+    P = p - vec3(0.0,  6.0, 0.0);                         \
+    d = UN(ARGS123, sdSphere(P, 5.0));                    \
+    P = p - vec3(0.0,  6.0, 0.0);                         \
+    d = MI(ARGS123, sdSphere(P, 4.8));                    \
+    P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
+    d = MI(ARGS123, sdSphere(P, 1.0 + sin(gTime) * 0.1)); \
+    P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
+    d = IN(ARGS123, sdSphere(P, 1.3));                    \
+    P = p - vec3( 1.1, sin(iTime * 0.343) * 0.9, 0.0);    \
+    P.yz *= rot2(gTime * 1.0);                            \
+    d = UN(ARGS123, sdSphere(P, 0.7));                    \
+    P = p - vec3(-1.1, sin(iTime * 0.443) * 0.9, 0.0);    \
+    P.zx *= rot2(abs(sin(iTime * 0.443 * 0.5 - PI/4.0)) * 15.0);                            \
+    d = UN(ARGS123, sdSphere(P, 0.7));
+
+
 float map(in vec3 p) {
-    gMapCalls += 1.0;
-
-    float d = 1e9;
-
-    p.y *= -1.0;
-    
-    vec3 p1 = p;
-    vec3 p2 = p;
-    p1.yz *= sin((p1.y - sin(iTime * 0.343) * 0.9) * 60.0) * 0.04 + 1.0;
-    p2.yz *= sin((p2.y - sin(iTime * 0.443) * 0.9) * 30.0) * 0.01 + 1.0;
-
-    
-    d = opUnion(d, sdSphere(p , vec3(0.0,  6.0, 0.0)                      , 5.0));
-    d = opMinus(d, sdSphere(p , vec3(0.0,  6.0, 0.0)                      , 4.8));
-    d = opMinus(d, sdSphere(vec3(abs(p.x), p.yz) , vec3(0.9, 1.8, 0.0)   , 1.0 + sin(gTime) * 0.1));
-    d = opIntsc(d, sdSphere(vec3(abs(p.x), p.yz) , vec3(0.9, 1.8, 0.0)   , 1.3));
-    d = opUnion(d, sdSphere(p1, vec3( 1.1, sin(iTime * 0.343) * 0.9, 0.0), 0.5));
-    d = opUnion(d, sdSphere(p2, vec3(-1.1, sin(iTime * 0.443) * 0.9, 0.0), 0.5));
-    d = opUnion(d, sdCylY  (vec3(p.xy, abs(p.z)) , vec3(0.0, 0.0, 6.0), 1.0));
-    
+#define UN opUnion
+#define MI opMinus
+#define IN opIntsc
+#define ARGS123 d
+    FOO
     return d;
+}
+
+vec3 localCoords(in vec3 p) {
+#undef UN
+#undef MI
+#undef IN
+#undef ARGS123
+#define UN opUnion2
+#define MI opMinus2
+#define IN opIntsc2
+#define ARGS123 localSpace, P, d
+    vec3 localSpace = vec3(0.0);
+    FOO
+    return localSpace;
 }
 
 // IQ: https://www.iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
@@ -67,17 +90,20 @@ float march(in vec3 ro, in vec3 rd) {
         if (d < closeEnoughEps) {
             return t;
         }
-        t += d * 0.9;
-        if (t > 450.0) {
+        t += d * 1.0;
+        if (t > 150.0) {
             return t;
         }
     }
     return t;
 }
 
+float ambient = 0.2;
+
 float calcDiffuseAmount(in vec3 p, in vec3 n) {
     vec3 lightDirection = normalize(vec3(-1.0));
     float ret = dot(n, -lightDirection);
+    ret = ambient + (ret * (1.0 - ambient));
     return ret;
 }
 
@@ -97,11 +123,13 @@ vec3 render(in vec3 ro, in vec3 rd) {
 
     vec3 col = vec3(0.0);
 
-    int bouncesLeft = 3;
+    int bouncesLeft = 5;
 
     vec3 contributionLeft = vec3(1.0);
 
-    vec3 albedo = vec3(0.4) * (sin(gTime * 0.44) * 0.2 + 0.8);
+    vec3 albedo1 = vec3(0.0, 0.4, 0.7) * (sin(gTime * 0.44) * 0.2 + 0.8);
+    vec3 albedo2 = vec3(0.7, 0.2, 0.3) * (sin(gTime * 0.34) * 0.2 + 0.8);
+    vec3 albedo3 = vec3(0.6, 0.4, 0.5) * (sin(gTime * 0.24) * 0.2 + 0.8);
     vec3 reflectAmount = vec3(0.7, 0.6, 0.0) * (sin(gTime * 0.3) * 0.5 + 0.5);
 
     while (bouncesLeft > 0 && maxPart(contributionLeft) > 0.0) {
@@ -113,13 +141,23 @@ vec3 render(in vec3 ro, in vec3 rd) {
             break;
         }
 
+        vec3 localPoint = localCoords(p);
+        float tht = atan(localPoint.z, localPoint.x);
+        float phi = acos(dot(normalize(localPoint), vec3(0.0, 1.0, 0.0)));
+        vec3 alb = albedo1;
+        float vertStripes = smoothstep(-0.05, 0.05, sin(tht * 5.0));
+        alb = mix(alb, albedo2, vertStripes);
+        alb = mix(alb, albedo3, 0.7 * smoothstep(0.29, 0.3, abs(phi - PI/2.0)));
 
         vec3 n = calcNormal(p);
-        vec3 dif = calcDiffuseAmount(p, n) * albedo;
+        vec3 dif = calcDiffuseAmount(p, n) * alb;
         dif *= calcAOFactor(p, n);
+        // dif = alb;
 
-        float fres = 1.0 - abs(dot(rd, n)) * 0.7;
+
+        float fres = 1.0 - abs(dot(rd, n)) * 0.5;
         reflectAmount *= fres;
+        reflectAmount *= 1.0 - vertStripes * 0.8;
         col += dif * (1.0 - reflectAmount) * contributionLeft;
         contributionLeft *= reflectAmount;
 
@@ -143,7 +181,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     // right-handed system where x is right, y is up, z is forward.
     float dt = 0.5;
     float t = gTime * 0.23;
-    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 0.7, sin(t)) * 3.0;
+    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 0.2 + 0.3, sin(t)) * 3.0;
     vec3 trgPt = vec3(0.0);
 
     // camera's forward, right, and up vectors. right-handed.
@@ -212,8 +250,26 @@ float opIntsc(in float a, in float b) {
     return max(a, b);
 }
 
-float sdSphere(in vec3 p, in vec3 c, in float r) {
-    return length(p - c) - r;
+float opUnion2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b) {
+    if (a < b) {
+        return a;
+    }
+    else {
+        localSpace = bSpace;
+        return b;
+    }
+}
+
+float opMinus2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b) {
+    return opMinus(a, b);
+}
+
+float opIntsc2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b) {
+    return opIntsc(a, b);
+}
+
+float sdSphere(in vec3 p, in float r) {
+    return length(p) - r;
 }
 
 float sdCylZ(in vec3 p, in vec3 c, in float r) {
@@ -222,6 +278,11 @@ float sdCylZ(in vec3 p, in vec3 c, in float r) {
 
 float sdCylY(in vec3 p, in vec3 c, in float r) {
     return length(p.xz - c.xz) - r;
+}
+
+float sdPlaneY(in vec3 p)
+{
+    return p.y;
 }
 
 
