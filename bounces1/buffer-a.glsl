@@ -4,9 +4,10 @@
 #endif
 
 // 0, 0:
-// x = is mouse down
-// y = did mouse just become down this very frame
-// z = writing or erasing
+// [0] = is mouse down
+// [1] = is time frozen
+// [2] = current time
+// [3] = unused
 
 
 void mainImage(out vec4 RGBA, in vec2 XY) {

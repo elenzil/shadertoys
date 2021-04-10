@@ -182,7 +182,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     // right-handed system where x is right, y is up, z is forward.
     float dt = 0.5;
     float t = gTime * 0.23;
-    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 0.2 + 0.3, sin(t)) * 3.0;
+    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 0.3 + 0.2, sin(t)) * 3.0;
     vec3 trgPt = vec3(0.0);
 
     // camera's forward, right, and up vectors. right-handed.
@@ -221,7 +221,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
 vec3 sky(in vec3 rd) {
     vec3 col = rd * 0.5 + 0.5;
     col = mix(col, col / max(col.r, max(col.g, col.b)), 0.2);
-    col *= rd.y < 0.0 ? 0.9 : 1.0;
+    col *= rd.y < 0.0 ? 0.5 : 1.0;
     return col;
 }
 
