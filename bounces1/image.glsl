@@ -2,6 +2,8 @@
 #include <common.glsl>
 #endif
 
+// TODO TODO TODO
+// Move the calculation of object positions into a once-per-pixel calculation.
 
 vec3 sky(in vec3 rd);
 mat2 rot2(in float theta);
@@ -21,6 +23,7 @@ float sdCylY(in vec3 p, in vec3 c, in float r);
 float gMapCalls;
 
 #define FOO                                               \
+    float sphMod = sin(gTime * 0.231) * 25.0 + 25.0;      \
     gMapCalls += 1.0;                                     \
     float d = 1e9;                                        \
     p.y *= -1.0;                                          \
@@ -35,7 +38,7 @@ float gMapCalls;
     d = IN(ARGS123, sdSphere(P, 1.3));                    \
     P = p - vec3( 1.1, sin(gTime * 0.343) * 0.9, 0.0);    \
     P.yz *= rot2(gTime * 1.0);                            \
-    d = UN(ARGS123, sdSphere(P, 0.7));                    \
+    d = UN(ARGS123, sdSphere(P, 0.7)  + smoothstep(-0.7, 0.7, (sin(P.y * sphMod) + sin(P.x * sphMod) + sin(P.z * sphMod))) * 0.01);  \
     P = p - vec3(-1.1, sin(gTime * 0.443) * 0.9, 0.0);    \
     P.zx *= rot2(abs(sin(gTime * 0.443 * 0.5 - PI/4.0)) * 15.0);                            \
     d = UN(ARGS123, sdSphere(P, 0.7));
@@ -182,7 +185,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     // right-handed system where x is right, y is up, z is forward.
     float dt = 0.5;
     float t = gTime * 0.23;
-    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 0.3 + 0.2, sin(t)) * 3.0;
+    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 1.73 + 0.2, sin(t)) * 3.0;
     vec3 trgPt = vec3(0.0);
 
     // camera's forward, right, and up vectors. right-handed.
