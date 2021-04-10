@@ -7,18 +7,19 @@
 // [0] = is mouse down
 // [1] = is time frozen
 // [2] = current time
-// [3] = unused
+// [3] = 1.0, used to recover time if resized.
 
 
 void mainImage(out vec4 RGBA, in vec2 XY) {
     ivec2 IJ = ivec2(XY);
 
-    if (iFrame == 0 || IJ.x != 0 || IJ.y != 0) {
-        RGBA = vec4(0.0);
+    RGBA = texelFetch(iChannel0, IJ, 0);
+
+    if (iFrame == 0 || IJ.x != 0 || IJ.y != 0 || RGBA[3] != 1.0) {
+        RGBA = vec4(0.0, 0.0, iTime, 1.0);
         return;
     }
 
-    RGBA = texelFetch(iChannel0, IJ, 0);
     bool  mouseWasDown = RGBA[0] == 1.0;
     bool  timeIsFrozen = RGBA[1] == 1.0;
     float time         = RGBA[2];
