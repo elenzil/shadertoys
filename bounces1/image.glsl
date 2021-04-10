@@ -33,11 +33,11 @@ float gMapCalls;
     d = MI(ARGS123, sdSphere(P, 1.0 + sin(gTime) * 0.1)); \
     P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
     d = IN(ARGS123, sdSphere(P, 1.3));                    \
-    P = p - vec3( 1.1, sin(iTime * 0.343) * 0.9, 0.0);    \
+    P = p - vec3( 1.1, sin(gTime * 0.343) * 0.9, 0.0);    \
     P.yz *= rot2(gTime * 1.0);                            \
     d = UN(ARGS123, sdSphere(P, 0.7));                    \
-    P = p - vec3(-1.1, sin(iTime * 0.443) * 0.9, 0.0);    \
-    P.zx *= rot2(abs(sin(iTime * 0.443 * 0.5 - PI/4.0)) * 15.0);                            \
+    P = p - vec3(-1.1, sin(gTime * 0.443) * 0.9, 0.0);    \
+    P.zx *= rot2(abs(sin(gTime * 0.443 * 0.5 - PI/4.0)) * 15.0);                            \
     d = UN(ARGS123, sdSphere(P, 0.7));
 
 
@@ -170,8 +170,9 @@ vec3 render(in vec3 ro, in vec3 rd) {
 
 void mainImage( out vec4 RGBA, in vec2 XY )
 {
+    vec4 persistedInfo = texelFetch(iChannel0, ivec2(0, 0), 0);
     setupCoords(iResolution.xy, 0.98);
-    setupTime(iTime);
+    setupTime(persistedInfo[2]);
     vec2  uv        = worldFromScreen(XY);
     float luv       = length(uv);
     vec2  ms        = worldFromScreen(iMouse.xy);

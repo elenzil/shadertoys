@@ -1,8 +1,20 @@
 
+[buffer-a]
+buffer = true
+
+[[pass]]
+buffer     = "buffer-a"
+clear      = [0.0, 0.0, 0.0, 1.0]
+draw       = {mode = "triangles", count = 1}
+vertex     = "./fullscreen_triangle.glsl"
+fragment   = "./buffer-a.glsl"
+iChannel0  = {resource = "buffer-a", filter="nearest", wrap="repeat"}
+
 
 [[pass]]
 clear      = [0.0, 0.0, 0.0, 1.0]
 draw       = {mode = "triangles", count = 1}
 vertex     = "./fullscreen_triangle.glsl"
 fragment   = "./image.glsl"
+iChannel0  = {resource = "buffer-a", filter="nearest", wrap="repeat"}
 
