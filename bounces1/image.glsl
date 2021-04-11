@@ -22,16 +22,28 @@ float sdCylY(in vec3 p, in vec3 c, in float r);
 
 float gMapCalls;
 
+vec3  gSph1Pos;
 float gSph1Rad;
+mat2  gSPh1Rot;
+vec3  gSph2Pos;
 float gSph2Rad;
+mat2  gSPh2Rot;
+float gSph3Rad;
+float gSphMod;
 
 void configScene() {
-    gSph1Rad = smoothstep(7.0, 30.0, gTime) * 0.7 + 0.01;
-    gSph2Rad = smoothstep(5.0, 20.0, gTime) * 0.7 + 0.01;
+    // move a bunch of trig etc out of the core map() routine and into once-per-fragment globals.
+    gSph1Pos    = vec3( 1.1, sin(gTime * 0.343) * 0.9, 0.0);
+    gSph1Rad    = smoothstep(7.0, 30.0, gTime) * 0.7 + 0.01;
+    gSPh1Rot    = rot2(gTime * 0.81);
+    gSph2Pos    = vec3(-1.1, sin(gTime * 0.443) * 0.9, 0.0);
+    gSph2Rad    = smoothstep(5.0, 20.0, gTime) * 0.7 + 0.01;
+    gSPh2Rot    = rot2(abs(sin(gTime * 0.443 * 0.5 - PI/4.0)) * 15.0);
+    gSph3Rad    = 1.0 + sin(gTime) * 0.1;
+    gSphMod     = sin(gTime * 0.231) * 25.0 + 25.0;
 }
 
 #define FOO                                               \
-    float sphMod = sin(gTime * 0.231) * 25.0 + 25.0;      \
     gMapCalls += 1.0;                                     \
     float d = 1e9;                                        \
     p.y *= -1.0;                                          \
@@ -41,14 +53,15 @@ void configScene() {
     P = p - vec3(0.0,  6.0, 0.0);                         \
     d = MI(ARGS123, sdSphere(P, 4.8));                    \
     P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
-    d = MI(ARGS123, sdSphere(P, 1.0 + sin(gTime) * 0.1)); \
+    d = MI(ARGS123, sdSphere(P, gSph3Rad));               \
     P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
     d = IN(ARGS123, sdSphere(P, 1.3));                    \
-    P = p - vec3( 1.1, sin(gTime * 0.343) * 0.9, 0.0);    \
-    P.yz *= rot2(gTime * 1.0);                            \
-    d = UN(ARGS123, sdSphere(P, gSph1Rad)  + smoothstep(-0.7, 0.7, (sin(P.y * sphMod) + sin(P.x * sphMod) + sin(P.z * sphMod))) * 0.01);  \
-    P = p - vec3(-1.1, sin(gTime * 0.443) * 0.9, 0.0);    \
-    P.zx *= rot2(abs(sin(gTime * 0.443 * 0.5 - PI/4.0)) * 15.0);                            \
+    P = p - gSph1Pos;    \
+    P.yz *= gSPh1Rot;                            \
+    float sphPerturb = smoothstep(-0.7, 0.7, (sin(P.y * gSphMod) + sin(P.x * gSphMod) + sin(P.z * gSphMod))) * 0.01; \
+    d = UN(ARGS123, sdSphere(P, gSph1Rad) + sphPerturb); \
+    P = p - gSph2Pos;    \
+    P.zx *= gSPh2Rot;                            \
     d = UN(ARGS123, sdSphere(P, gSph2Rad));
 
 
@@ -88,7 +101,7 @@ vec3 calcNormal( in vec3 p ) // for function f(p)
     return normalize(n);
 }
 
-const float closeEps = 0.0005;
+const float closeEps = 0.002;
 
 float march(in vec3 ro, in vec3 rd) {
     const int maxSteps = 100;
@@ -138,9 +151,9 @@ vec3 render(in vec3 ro, in vec3 rd) {
 
     vec3 contributionLeft = vec3(1.0);
 
-    vec3 albedo1 = vec3(0.0, 0.4, 0.7) * (sin(gTime * 0.44) * 0.2 + 0.8);
+    vec3 albedo1 = vec3(0.0, 0.6, 1.0) * (sin(gTime * 0.44) * 0.2 + 0.8);
     vec3 albedo2 = vec3(0.7, 0.2, 0.3) * (sin(gTime * 0.34) * 0.2 + 0.8);
-    vec3 albedo3 = vec3(0.6, 0.4, 0.5) * (sin(gTime * 0.24) * 0.2 + 0.8);
+    vec3 albedo3 = vec3(0.5, 0.1, 0.2) * (sin(gTime * 0.24) * 0.2 + 0.8);
     vec3 reflectAmount = vec3(0.7, 0.6, 0.0) * (sin(gTime * 0.3) * 0.5 + 0.5);
 
     while (bouncesLeft > 0 && maxPart(contributionLeft) > 0.0) {
@@ -156,7 +169,7 @@ vec3 render(in vec3 ro, in vec3 rd) {
         float tht = atan(localPoint.z, localPoint.x);
         float phi = acos(dot(normalize(localPoint), vec3(0.0, 1.0, 0.0)));
         vec3 alb = albedo1;
-        float vertStripes = smoothstep(-0.05, 0.05, sin(tht * 5.0));
+        float vertStripes = smoothstep(-0.05, 0.05, sin(tht * 5.0) - 0.7);
       //  alb = mix(alb, albedo2, vertStripes);
         alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((phi - PI/2.0) * 2.0 + cos(tht * 5.0) * 0.3)));
 
@@ -165,10 +178,11 @@ vec3 render(in vec3 ro, in vec3 rd) {
         dif *= calcAOFactor(p, n);
         // dif = alb;
 
+        float lid = smoothstep(0.27, 0.269, abs(phi - PI/2.0) * 0.2);
 
-        float fres = 1.0 - abs(dot(rd, n)) * 0.5;
+        float fres = abs(dot(rd, n)) * 0.5;
         reflectAmount *= fres;
-        reflectAmount *= 1.0 - vertStripes * 0.8;
+        reflectAmount *= 0.8 * ((1.0 - vertStripes) * lid);
         col += dif * (1.0 - reflectAmount) * contributionLeft;
         contributionLeft *= reflectAmount;
 
