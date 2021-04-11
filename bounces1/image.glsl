@@ -158,7 +158,7 @@ vec3 render(in vec3 ro, in vec3 rd) {
         vec3 alb = albedo1;
         float vertStripes = smoothstep(-0.05, 0.05, sin(tht * 5.0));
       //  alb = mix(alb, albedo2, vertStripes);
-        alb = mix(alb, albedo3, 0.7 * smoothstep(0.29, 0.3, (cos(tht * 5.0) * 0.3 + 1.0) * abs(phi - PI/2.0)));
+        alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((phi - PI/2.0) * 2.0 + cos(tht * 5.0) * 0.3)));
 
         vec3 n = calcNormal(p);
         vec3 dif = calcDiffuseAmount(p, n) * alb;
@@ -193,7 +193,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     // right-handed system where x is right, y is up, z is forward.
     float dt = 0.5;
     float t = gTime * 0.23;
-    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 1.73 + 0.2, sin(t)) * 3.0;
+    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 1.3 + 0.3, sin(t)) * 3.0;
     vec3 trgPt = vec3(0.0);
 
     // camera's forward, right, and up vectors. right-handed.
