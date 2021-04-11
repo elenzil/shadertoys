@@ -22,6 +22,14 @@ float sdCylY(in vec3 p, in vec3 c, in float r);
 
 float gMapCalls;
 
+float gSph1Rad;
+float gSph2Rad;
+
+void configScene() {
+    gSph1Rad = smoothstep(7.0, 30.0, gTime) * 0.7 + 0.01;
+    gSph2Rad = smoothstep(5.0, 20.0, gTime) * 0.7 + 0.01;
+}
+
 #define FOO                                               \
     float sphMod = sin(gTime * 0.231) * 25.0 + 25.0;      \
     gMapCalls += 1.0;                                     \
@@ -38,10 +46,10 @@ float gMapCalls;
     d = IN(ARGS123, sdSphere(P, 1.3));                    \
     P = p - vec3( 1.1, sin(gTime * 0.343) * 0.9, 0.0);    \
     P.yz *= rot2(gTime * 1.0);                            \
-    d = UN(ARGS123, sdSphere(P, 0.7)  + smoothstep(-0.7, 0.7, (sin(P.y * sphMod) + sin(P.x * sphMod) + sin(P.z * sphMod))) * 0.01);  \
+    d = UN(ARGS123, sdSphere(P, gSph1Rad)  + smoothstep(-0.7, 0.7, (sin(P.y * sphMod) + sin(P.x * sphMod) + sin(P.z * sphMod))) * 0.01);  \
     P = p - vec3(-1.1, sin(gTime * 0.443) * 0.9, 0.0);    \
     P.zx *= rot2(abs(sin(gTime * 0.443 * 0.5 - PI/4.0)) * 15.0);                            \
-    d = UN(ARGS123, sdSphere(P, 0.7));
+    d = UN(ARGS123, sdSphere(P, gSph2Rad));
 
 
 float map(in vec3 p) {
@@ -149,8 +157,8 @@ vec3 render(in vec3 ro, in vec3 rd) {
         float phi = acos(dot(normalize(localPoint), vec3(0.0, 1.0, 0.0)));
         vec3 alb = albedo1;
         float vertStripes = smoothstep(-0.05, 0.05, sin(tht * 5.0));
-        alb = mix(alb, albedo2, vertStripes);
-        alb = mix(alb, albedo3, 0.7 * smoothstep(0.29, 0.3, abs(phi - PI/2.0)));
+      //  alb = mix(alb, albedo2, vertStripes);
+        alb = mix(alb, albedo3, 0.7 * smoothstep(0.29, 0.3, (cos(tht * 5.0) * 0.3 + 1.0) * abs(phi - PI/2.0)));
 
         vec3 n = calcNormal(p);
         vec3 dif = calcDiffuseAmount(p, n) * alb;
@@ -205,6 +213,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     
     gMapCalls = 0.0;
 
+    configScene();
     vec3 col = render(ro, rd);
 
     float outCircle = smoothstep(-smoothEps, smoothEps, luv - 1.0);
