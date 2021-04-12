@@ -169,7 +169,7 @@ vec3 render(in vec3 ro, in vec3 rd) {
         float tht = atan(localPoint.z, localPoint.x);
         float phi = acos(dot(normalize(localPoint), vec3(0.0, 1.0, 0.0)));
         vec3 alb = albedo1;
-        float vertStripes = smoothstep(-0.05, 0.05, sin(tht * 5.0) - 0.7);
+        float vertStripes = smoothstep(-0.05, 0.05, sin(tht * 5.0 + phi * 4.0) - 0.7);
       //  alb = mix(alb, albedo2, vertStripes);
         alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((phi - PI/2.0) * 2.0 + cos(tht * 5.0) * 0.3)));
 
