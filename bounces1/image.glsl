@@ -42,7 +42,7 @@ void configScene() {
     gSph2Pos    = vec3(-1.1, sin(gTime * 0.443) * 0.9, 0.0);
     gSph2Rad    = smoothstep(5.0, 20.0, gTime) * 0.7 + 0.01;
     gSPh2Rot    = rot2(abs(sin(gTime * 0.443 * 0.5 - PI/4.0)) * 15.0);
-    gSph3Rad    = 1.0 + sin(gTime) * 0.1;
+    gSph3Rad    = 0.85 + sin(gTime) * 0.05;
     gSphMod     = sin(gTime * 0.231) * 25.0 + 25.0;
 }
 
@@ -54,8 +54,8 @@ void configScene() {
     P = p - vec3(0.0,  6.0, 0.0);                         \
     d = UN(ARGS123, sdSphere(P, 5.0));                    \
     P = p - vec3(0.0,  6.0, 0.0);                         \
-    d = MI(ARGS123, sdSphere(P, 4.8));                    \
-    P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
+    d = MI(ARGS123, sdSphere(P, 4.9));                    \
+    P = vec3(abs(p.x), p.yz) - vec3(0.9, 0.9, 0.0);       \
     d = MI(ARGS123, sdSphere(P, gSph3Rad));               \
     P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
     d = IN(ARGS123, sdSphere(P, 1.3));                    \
@@ -128,28 +128,23 @@ float march(in vec3 ro, in vec3 rd) {
     return t;
 }
 
-float ambient = 0.2;
-vec3 lightDirection = normalize(vec3(-1.0));
+vec3 lightDirection = normalize(vec3(-2.0, -1.0, 0.2));
 
 float calcDiffuseAmount(in vec3 p, in vec3 n) {
-    float ret = 0.0;
-//    ret += 1.0 * clamp(dot(n,  lightDirection), 0.0, 1.0);
-    ret += 0.5 * clamp(dot(n, -lightDirection), 0.0, 1.0);
-    ret = ambient + (ret * (1.0 - ambient));
-    return ret;
+    return clamp(dot(n, -lightDirection), 0.0, 1.0);
 }
 
-const float AOFactorMin = 0.5;
+const float AOFactorMin = 0.2;
 const float AOFactorMax = 1.0;
 float calcAOFactor(in vec3 p, in vec3 n) {
-    const float sampleDist = 0.2;
+    const float sampleDist = 0.4;
     float dist = smoothstep(0.0, sampleDist, map(p + n * sampleDist));
     return mix(AOFactorMin, AOFactorMax, (dist));
 }
 
-float calcShadowFactor(in vec3 p) {
+float calcShadowLight(in vec3 p) {
     float t = march(p - lightDirection * 0.05, -lightDirection);
-    return t > 40.0 ? 1.0 : 0.5;
+    return t > 40.0 ? 1.0 : 0.0;
 }
 
 float maxPart(in vec3 v) {
@@ -192,14 +187,13 @@ vec3 render(in vec3 ro, in vec3 rd) {
         alb = mix(alb, albedo4, dots);
 
         vec3 n = calcNormal(p);
-        vec3 dif = alb;
-        dif *= calcDiffuseAmount(p, n);
-        dif *= calcAOFactor(p, n);
-        dif *= calcShadowFactor(p);
-        // dif = alb;
-//        dif *= 0.0;
-     
-     
+
+        float incomingLight = 1.0;
+        incomingLight = min(incomingLight, calcDiffuseAmount(p, n));
+        incomingLight = min(incomingLight, calcShadowLight(p));
+        float ambient = 0.05 * calcAOFactor(p, n);
+        incomingLight += ambient;
+        vec3 dif = alb * incomingLight;
 
         float lid = smoothstep(0.27, 0.269, abs(phi) * 0.2);
 
