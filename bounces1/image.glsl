@@ -1,3 +1,6 @@
+
+
+
 #ifdef GRIMOIRE
 #include <common.glsl>
 #endif
@@ -58,7 +61,7 @@ void configScene() {
     d = IN(ARGS123, sdSphere(P, 1.3));                    \
     P = p - gSph1Pos;    \
     P.yz *= gSPh1Rot;                            \
-    float sphPerturb = smoothstep(-0.7, 0.7, (sin(P.y * gSphMod) + sin(P.x * gSphMod) + sin(P.z * gSphMod))) * 0.01; \
+    float sphPerturb = 0.004 * (-1.0 + 2.0 * smoothstep(-0.8, 0.8, (sin(P.y * gSphMod) + sin(P.x * gSphMod) + sin(P.z * gSphMod)))); \
     d = UN(ARGS123, sdSphere(P, gSph1Rad) + sphPerturb); \
     P = p - gSph2Pos;    \
     P.zx *= gSPh2Rot;                            \
@@ -91,7 +94,7 @@ vec3 localCoords(in vec3 p) {
 // IQ: https://www.iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
 vec3 calcNormal( in vec3 p ) // for function f(p)
 {
-    const float h = 0.0001;      // replace by an appropriate value
+    const float h = 0.002;      // replace by an appropriate value
     vec3 n = vec3(0.0);
     for( int i=ZERO; i<4; i++ )
     {
@@ -101,11 +104,14 @@ vec3 calcNormal( in vec3 p ) // for function f(p)
     return normalize(n);
 }
 
+
 const float closeEps = 0.002;
 
 float march(in vec3 ro, in vec3 rd) {
     const int maxSteps = 100;
-    
+
+    float d1 = map(ro);
+
     vec3 p = ro;
     float t = 0.0;
     for (int n = 1; n <= maxSteps; ++n) {
@@ -114,8 +120,8 @@ float march(in vec3 ro, in vec3 rd) {
         if (d < closeEnoughEps) {
             return t;
         }
-        t += d * 1.0;
-        if (t > 150.0) {
+        t += d;
+        if (t > 200.0) {
             return t;
         }
     }
@@ -123,10 +129,12 @@ float march(in vec3 ro, in vec3 rd) {
 }
 
 float ambient = 0.2;
+vec3 lightDirection = normalize(vec3(-1.0));
 
 float calcDiffuseAmount(in vec3 p, in vec3 n) {
-    vec3 lightDirection = normalize(vec3(-1.0));
-    float ret = dot(n, -lightDirection);
+    float ret = 0.0;
+//    ret += 1.0 * clamp(dot(n,  lightDirection), 0.0, 1.0);
+    ret += 0.5 * clamp(dot(n, -lightDirection), 0.0, 1.0);
     ret = ambient + (ret * (1.0 - ambient));
     return ret;
 }
@@ -139,6 +147,11 @@ float calcAOFactor(in vec3 p, in vec3 n) {
     return mix(AOFactorMin, AOFactorMax, (dist));
 }
 
+float calcShadowFactor(in vec3 p) {
+    float t = march(p - lightDirection * 0.05, -lightDirection);
+    return t > 40.0 ? 1.0 : 0.5;
+}
+
 float maxPart(in vec3 v) {
     return max(v.x, max(v.y, v.z));
 }
@@ -147,47 +160,60 @@ vec3 render(in vec3 ro, in vec3 rd) {
 
     vec3 col = vec3(0.0);
 
-    int bouncesLeft = 5;
+    int bouncesLeft = 4;
 
     vec3 contributionLeft = vec3(1.0);
 
     vec3 albedo1 = vec3(0.0, 0.6, 1.0) * (sin(gTime * 0.44) * 0.2 + 0.8);
     vec3 albedo2 = vec3(0.7, 0.2, 0.3) * (sin(gTime * 0.34) * 0.2 + 0.8);
     vec3 albedo3 = vec3(0.5, 0.1, 0.2) * (sin(gTime * 0.24) * 0.2 + 0.8);
-    vec3 reflectAmount = vec3(0.7, 0.6, 0.0) * (sin(gTime * 0.3) * 0.5 + 0.5);
+    vec3 albedo4 = vec3(1.0, 1.0, 0.2);
+    vec3 reflectAmount = vec3(1.0, 0.8, 0.5) * (sin(gTime * 0.3) * 0.45 + 0.55);
 
-    while (bouncesLeft > 0 && maxPart(contributionLeft) > 0.0) {
+    while (bouncesLeft >= 0 && maxPart(contributionLeft) > 0.0) {
         bouncesLeft -= 1;
         float t = march(ro, rd);
         vec3 p = ro + t * rd;
-        if (length(p) > 100.0) {
+        if (length(p) > 150.0) {
             col += sky(rd) * contributionLeft;
             break;
         }
 
         vec3 localPoint = localCoords(p);
         float tht = atan(localPoint.z, localPoint.x);
-        float phi = acos(dot(normalize(localPoint), vec3(0.0, 1.0, 0.0)));
+        float phi = acos(dot(normalize(localPoint), vec3(0.0, 1.0, 0.0))) - PI/2.0;
         vec3 alb = albedo1;
-        float vertStripes = smoothstep(-0.05, 0.05, sin(tht * 5.0 + phi * 4.0) - 0.7);
+        float vertStripes = 1.0 - smoothstep(-0.02, 0.02, sin(tht * 5.0 + phi * 4.0) - 0.7);
+//        vertStripes *= 1.0 - smoothstep(-0.02, 0.02, sin(tht * 5.0 - phi * 4.0 + PI) - 0.7);
+        vertStripes = 1.0 - vertStripes;
+        float dots = smoothstep(0.005, -0.005, length(vec2(phi * 2.5 * 2.0, sin((tht + 2.2) * 5.0 / 1.0))) - 0.4);
       //  alb = mix(alb, albedo2, vertStripes);
-        alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((phi - PI/2.0) * 2.0 + cos(tht * 5.0) * 0.3)));
+        alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((phi) * 2.0 + cos(tht * 5.0) * 0.3)));
+        alb = mix(alb, albedo4, dots);
 
         vec3 n = calcNormal(p);
-        vec3 dif = calcDiffuseAmount(p, n) * alb;
+        vec3 dif = alb;
+        dif *= calcDiffuseAmount(p, n);
         dif *= calcAOFactor(p, n);
+        dif *= calcShadowFactor(p);
         // dif = alb;
+//        dif *= 0.0;
+     
+     
 
-        float lid = smoothstep(0.27, 0.269, abs(phi - PI/2.0) * 0.2);
+        float lid = smoothstep(0.27, 0.269, abs(phi) * 0.2);
 
-        float fres = abs(dot(rd, n)) * 0.5;
+        float fres = 0.4 + 0.8 * clamp(pow(1.0 - abs(dot(rd, n) - 0.1), 2.0), 0.0, 1.0);
         reflectAmount *= fres;
-        reflectAmount *= 0.8 * ((1.0 - vertStripes) * lid);
+        reflectAmount *= 0.2 + 0.8 * ((1.0 - vertStripes) * lid);
+        
         col += dif * (1.0 - reflectAmount) * contributionLeft;
         contributionLeft *= reflectAmount;
-
+        
+       
         ro = p + n * 0.05;
         rd = reflect(rd, n);
+        
     }
 
     return col;
@@ -196,39 +222,49 @@ vec3 render(in vec3 ro, in vec3 rd) {
 void mainImage( out vec4 RGBA, in vec2 XY )
 {
     vec4 persistedInfo = texelFetch(iChannel0, ivec2(0, 0), 0);
-    setupCoords(iResolution.xy, 0.98);
+    setupCoords(iResolution.xy, 0.97);
     setupTime(persistedInfo[2]);
     vec2  uv        = worldFromScreen(XY);
     float luv       = length(uv);
     vec2  ms        = worldFromScreen(iMouse.xy);
     float smoothEps = gWorldFromScreenFac * 2.0;
 
+    configScene();
+
     // look-from and look-to points
     // right-handed system where x is right, y is up, z is forward.
     float dt = 0.5;
     float t = gTime * 0.23;
-    vec3 camPt = vec3(cos(t), sin(t * 0.12) * 1.3 + 0.3, sin(t)) * 3.0;
     vec3 trgPt = vec3(0.0);
+    
+    float lookChoice = smoothstep(-0.1, 0.1, sin(t * 0.41));
+    trgPt = mix(gSph1Pos, gSph2Pos, lookChoice);
+    trgPt.y *= -1.0;
 
+    vec3 col = vec3(0.0);
+
+    vec3 camPt = vec3(cos(t), sin(t * 0.32) * 0.4, sin(t)) * -2.3;
+    
     // camera's forward, right, and up vectors. right-handed.
     vec3 camFw = normalize(trgPt - camPt);
     vec3 camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
     vec3 camUp = cross(camRt, camFw);
+    
+    
 
     // mess with camPt, just for fun
-    float messFac = luv < 1.0 ? 0.0 : 2.0 * (luv - 1.0);
-    camPt += camFw * messFac;
+    float messFac = luv < 1.0 ? 0.0 : 3.0 * (luv - 1.0);
+    camPt += camRt * messFac;
 
     // ray origin and direction
     vec3 ro    = camPt;
-    vec3 rd    = normalize(camFw + uv.x * camRt / (1.0 + messFac * 1.0) + uv.y * camUp / (1.0 + messFac * 1.0));
+    vec3 rd    = normalize(camFw + uv.x * camRt / (1.0 + messFac * 2.0) + uv.y * camUp / (1.0 + messFac * 2.0));
     
     const int maxSteps = 100;
     
     gMapCalls = 0.0;
 
-    configScene();
-    vec3 col = render(ro, rd);
+    col += render(ro, rd);
 
     float outCircle = smoothstep(-smoothEps, smoothEps, luv - 1.0);
     col *= 1.0 - 0.1 * outCircle * pow(luv, 1.5);
@@ -236,6 +272,8 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     col *= 1.0 + smoothstep(smoothEps, -smoothEps, abs(luv - 1.0));
 
   //  col.r = gMapCalls / 200.0;
+  
+    col = pow(col, vec3(1.0 / 2.2));
     
     RGBA = vec4(col, 1.0);
 }
@@ -245,7 +283,11 @@ void mainImage( out vec4 RGBA, in vec2 XY )
 //////////////////////////////////////////////////////////////////////////////
 
 vec3 sky(in vec3 rd) {
+    float tht = atan(rd.z, rd.x);
+    float phi = acos(dot(normalize(rd), vec3(0.0, 1.0, 0.0)));
     vec3 col = rd * 0.5 + 0.5;
+    col *= smoothstep(0.002, -0.002, sin(tht       * 4.0)) * -0.3 + 1.0;
+    col *= smoothstep(0.002, -0.002, sin(phi * 2.0 * 4.0)) * -0.3 + 1.0;
     col = mix(col, col / max(col.r, max(col.g, col.b)), 0.2);
     col *= rd.y < 0.0 ? 0.5 : 1.0;
     return col;

@@ -24,7 +24,7 @@ void mainImage(out vec4 RGBA, in vec2 XY) {
     bool  timeIsFrozen = RGBA[1] == 1.0;
     float time         = RGBA[2];
 
-    bool mouseIsDown = iMouse.z > 0;
+    bool mouseIsDown = iMouse.z > 0.0;
 
     timeIsFrozen = timeIsFrozen ^^ (!mouseIsDown && mouseWasDown);
 
