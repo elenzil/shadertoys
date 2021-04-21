@@ -15,9 +15,9 @@ vec3 directionToColor(in vec3 dir);
 float opUnion(in float a, in float b);
 float opMinus(in float a, in float b);
 float opIntsc(in float a, in float b);
-float opUnion2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b);
-float opMinus2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b);
-float opIntsc2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b);
+float opUnion2(inout vec3 localSpace, in vec3 bSpace, inout int material, in int bMaterial, in float a, in float b);
+float opMinus2(inout vec3 localSpace, in vec3 bSpace, inout int material, in int bMaterial, in float a, in float b);
+float opIntsc2(inout vec3 localSpace, in vec3 bSpace, inout int material, in int bMaterial, in float a, in float b);
 
 float sdSphere(in vec3 p, in float r);
 float sdCylZ(in vec3 p, in vec3 c, in float r);
@@ -47,45 +47,57 @@ void configScene() {
 }
 
 #define FOO                                               \
+    int bMat = 0;                                         \
     gMapCalls += 1.0;                                     \
     float d = 1e9;                                        \
     p.y *= -1.0;                                          \
     vec3 P;                                               \
+                                                          \
+    /* ground thing */                                    \
+    /*
+    bMat = 0;                                             \
     P = p - vec3(0.0,  6.0, 0.0);                         \
-    d = UN(ARGS123, sdSphere(P, 5.0));                    \
+    d = UN(VARIABLE_ARGS, sdSphere(P, 5.0));              \
     P = p - vec3(0.0,  6.0, 0.0);                         \
-    d = MI(ARGS123, sdSphere(P, 4.9));                    \
+    d = MI(VARIABLE_ARGS, sdSphere(P, 4.9));              \
     P = vec3(abs(p.x), p.yz) - vec3(0.9, 0.9, 0.0);       \
-    d = MI(ARGS123, sdSphere(P, gSph3Rad));               \
+    d = MI(VARIABLE_ARGS, sdSphere(P, gSph3Rad));         \
     P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
-    d = IN(ARGS123, sdSphere(P, 1.3));                    \
-    P = p - gSph1Pos;    \
-    P.yz *= gSPh1Rot;                            \
+    d = IN(VARIABLE_ARGS, sdSphere(P, 1.3));              \
+    */ \
+                                                          \
+    /* ball 1 */                                          \
+    bMat = 1;                                             \
+    P = p - gSph1Pos;                                     \
+    P.yz *= gSPh1Rot;                                     \
     float sphPerturb = 0.004 * (-1.0 + 2.0 * smoothstep(-0.8, 0.8, (sin(P.y * gSphMod) + sin(P.x * gSphMod) + sin(P.z * gSphMod)))); \
-    d = UN(ARGS123, sdSphere(P, gSph1Rad) + sphPerturb); \
+    d = UN(VARIABLE_ARGS, sdSphere(P, gSph1Rad) + sphPerturb); \
+    /* ball 2 */                                          \
+    bMat = 2;                                             \
     P = p - gSph2Pos;    \
     P.zx *= gSPh2Rot;                            \
-    d = UN(ARGS123, sdSphere(P, gSph2Rad));
+    d = UN(VARIABLE_ARGS, sdSphere(P, gSph2Rad));
 
 
 float map(in vec3 p) {
 #define UN opUnion
 #define MI opMinus
 #define IN opIntsc
-#define ARGS123 d
+#define VARIABLE_ARGS d
     FOO
     return d;
 }
 
-vec3 localCoords(in vec3 p) {
+vec3 localCoords(in vec3 p, out int mat) {
 #undef UN
 #undef MI
 #undef IN
-#undef ARGS123
+#undef VARIABLE_ARGS
 #define UN opUnion2
 #define MI opMinus2
 #define IN opIntsc2
-#define ARGS123 localSpace, P, d
+#define VARIABLE_ARGS localSpace, P, mat, bMat, d
+    mat = -1;
     vec3 localSpace = vec3(0.0);
     FOO
     return localSpace;
@@ -151,6 +163,56 @@ float maxPart(in vec3 v) {
     return max(v.x, max(v.y, v.z));
 }
 
+struct pol3 {
+    float rho;
+    float tht;
+    float phi;
+};
+
+pol3 sphericalFromCartesian(in vec3 cartesian) {
+    pol3 ret;
+
+    ret.tht = atan(cartesian.z, cartesian.x);
+    ret.phi = acos(dot(normalize(cartesian), vec3(0.0, 1.0, 0.0))) - PI/2.0;
+    ret.rho = length(cartesian);
+
+    return ret;
+}
+
+const vec3 albedo1 = vec3(0.0, 0.6, 1.0);
+const vec3 albedo2 = vec3(0.7, 0.2, 0.3);
+const vec3 albedo3 = vec3(0.5, 0.1, 0.2);
+const vec3 albedo4 = vec3(1.0, 1.0, 0.2);
+const vec3 albedo5 = vec3(1.0, 0.2, 0.2);
+
+
+void calcMaterialCommons(in int material, in vec3 pCrt, in pol3 pPol) {
+}
+
+
+vec3 getAlbedoFilter(in int material, in vec3 pCrt, in pol3 pPol) {
+    float dots = smoothstep(0.005, -0.005, length(vec2(pPol.phi * 2.5 * 2.0, sin((pPol.tht + 2.2) * 5.0 / 1.0))) - 0.4);
+    vec3 alb = albedo1;
+    alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((pPol.phi) * 2.0 + cos(pPol.tht * 5.0) * 0.3)));
+    alb = mix(alb, material == 1 ? albedo4 : albedo5, dots);
+    return alb;
+}
+
+vec3 getReflctFilter(in int material, in vec3 pCrt, in pol3 pPol) {
+    vec3 reflectAmount = vec3(1.0, 0.8, 0.5) * (sin(gTime * 0.3) * 0.45 + 0.55);
+
+    float vertStripes = smoothstep(-0.02, 0.02, sin(pPol.tht * 5.0 + pPol.phi * 4.0) - 0.7);
+
+    float lid = smoothstep(0.27, 0.269, abs(pPol.phi) * 0.2);
+
+    if (material == 0) {
+        reflectAmount *= 0.0;
+    }
+    reflectAmount *= 0.2 + 0.8 * ((1.0 - vertStripes) * lid);
+
+    return reflectAmount;
+}
+
 vec3 render(in vec3 ro, in vec3 rd) {
 
     vec3 col = vec3(0.0);
@@ -159,13 +221,7 @@ vec3 render(in vec3 ro, in vec3 rd) {
 
     vec3 contributionLeft = vec3(1.0);
 
-    vec3 albedo1 = vec3(0.0, 0.6, 1.0) * (sin(gTime * 0.44) * 0.2 + 0.8);
-    vec3 albedo2 = vec3(0.7, 0.2, 0.3) * (sin(gTime * 0.34) * 0.2 + 0.8);
-    vec3 albedo3 = vec3(0.5, 0.1, 0.2) * (sin(gTime * 0.24) * 0.2 + 0.8);
-    vec3 albedo4 = vec3(1.0, 1.0, 0.2);
-    vec3 reflectAmount = vec3(1.0, 0.8, 0.5) * (sin(gTime * 0.3) * 0.45 + 0.55);
-
-    while (bouncesLeft >= 0 && maxPart(contributionLeft) > 0.0) {
+    while (bouncesLeft >= 0 && maxPart(contributionLeft) > 0.001) {
         bouncesLeft -= 1;
         float t = march(ro, rd);
         vec3 p = ro + t * rd;
@@ -174,40 +230,33 @@ vec3 render(in vec3 ro, in vec3 rd) {
             break;
         }
 
-        vec3 localPoint = localCoords(p);
-        float tht = atan(localPoint.z, localPoint.x);
-        float phi = acos(dot(normalize(localPoint), vec3(0.0, 1.0, 0.0))) - PI/2.0;
-        vec3 alb = albedo1;
-        float vertStripes = 1.0 - smoothstep(-0.02, 0.02, sin(tht * 5.0 + phi * 4.0) - 0.7);
-//        vertStripes *= 1.0 - smoothstep(-0.02, 0.02, sin(tht * 5.0 - phi * 4.0 + PI) - 0.7);
-        vertStripes = 1.0 - vertStripes;
-        float dots = smoothstep(0.005, -0.005, length(vec2(phi * 2.5 * 2.0, sin((tht + 2.2) * 5.0 / 1.0))) - 0.4);
-      //  alb = mix(alb, albedo2, vertStripes);
-        alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((phi) * 2.0 + cos(tht * 5.0) * 0.3)));
-        alb = mix(alb, albedo4, dots);
+        vec3 normal = calcNormal(p);
 
-        vec3 n = calcNormal(p);
+        int material;
+        vec3 ptCrt = localCoords(p, material);
+        pol3 ptSph = sphericalFromCartesian(ptCrt);
+
 
         float incomingLight = 1.0;
-        incomingLight = min(incomingLight, calcDiffuseAmount(p, n));
+        incomingLight = min(incomingLight, calcDiffuseAmount(p, normal));
         incomingLight = min(incomingLight, calcShadowLight(p));
-        float ambient = 0.05 * calcAOFactor(p, n);
+        float ambient = 0.05 * calcAOFactor(p, normal);
         incomingLight += ambient;
-        vec3 dif = alb * incomingLight;
 
-        float lid = smoothstep(0.27, 0.269, abs(phi) * 0.2);
+        calcMaterialCommons(material, ptCrt, ptSph);
+        vec3 albedoFilter = getAlbedoFilter(material, ptCrt, ptSph);
+        vec3 reflctFilter = getReflctFilter(material, ptCrt, ptSph);
 
-        float fres = 0.4 + 0.8 * clamp(pow(1.0 - abs(dot(rd, n) - 0.1), 2.0), 0.0, 1.0);
-        reflectAmount *= fres;
-        reflectAmount *= 0.2 + 0.8 * ((1.0 - vertStripes) * lid);
+        vec3 diffuse = albedoFilter * incomingLight;
         
-        col += dif * (1.0 - reflectAmount) * contributionLeft;
-        contributionLeft *= reflectAmount;
-        
-       
-        ro = p + n * 0.05;
-        rd = reflect(rd, n);
-        
+        float fres = 0.4 + 0.8 * clamp(pow(1.0 - abs(dot(rd, normal) - 0.1), 2.0), 0.0, 1.0);
+        reflctFilter *= fres;
+
+        col += diffuse * (1.0 - reflctFilter) * contributionLeft;
+        contributionLeft *= reflctFilter;
+          
+        ro = p + normal * 0.05;
+        rd = reflect(rd, normal);
     }
 
     return col;
@@ -313,21 +362,22 @@ float opIntsc(in float a, in float b) {
     return max(a, b);
 }
 
-float opUnion2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b) {
+float opUnion2(inout vec3 localSpace, in vec3 bSpace, inout int material, in int bMaterial, in float a, in float b) {
     if (a < b) {
         return a;
     }
     else {
         localSpace = bSpace;
+        material = bMaterial;
         return b;
     }
 }
 
-float opMinus2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b) {
+float opMinus2(inout vec3 localSpace, in vec3 bSpace, inout int material, in int bMaterial, in float a, in float b) {
     return opMinus(a, b);
 }
 
-float opIntsc2(inout vec3 localSpace, in vec3 bSpace, in float a, in float b) {
+float opIntsc2(inout vec3 localSpace, in vec3 bSpace, inout int material, in int bMaterial, in float a, in float b) {
     return opIntsc(a, b);
 }
 
