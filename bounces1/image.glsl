@@ -190,7 +190,7 @@ void calcMaterialCommons(in int material, in vec3 pCrt, in pol3 pPol) {
 }
 
 
-vec3 getAlbedoFilter(in int material, in vec3 pCrt, in pol3 pPol) {
+vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
     float dots = smoothstep(0.005, -0.005, length(vec2(pPol.phi * 2.5 * 2.0, sin((pPol.tht + 2.2) * 5.0 / 1.0))) - 0.4);
     vec3 alb = albedo1;
     alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((pPol.phi) * 2.0 + cos(pPol.tht * 5.0) * 0.3)));
@@ -198,7 +198,7 @@ vec3 getAlbedoFilter(in int material, in vec3 pCrt, in pol3 pPol) {
     return alb;
 }
 
-vec3 getReflctFilter(in int material, in vec3 pCrt, in pol3 pPol) {
+vec3 getReflectivity(in int material, in vec3 pCrt, in pol3 pPol) {
     vec3 reflectAmount = vec3(1.0, 0.8, 0.5) * (sin(gTime * 0.3) * 0.45 + 0.55);
 
     float vertStripes = smoothstep(-0.02, 0.02, sin(pPol.tht * 5.0 + pPol.phi * 4.0) - 0.7);
@@ -243,17 +243,15 @@ vec3 render(in vec3 ro, in vec3 rd) {
         float ambient = 0.05 * calcAOFactor(p, normal);
         incomingLight += ambient;
 
-        calcMaterialCommons(material, ptCrt, ptSph);
-        vec3 albedoFilter = getAlbedoFilter(material, ptCrt, ptSph);
-        vec3 reflctFilter = getReflctFilter(material, ptCrt, ptSph);
-
-        vec3 diffuse = albedoFilter * incomingLight;
-        
         float fres = 0.4 + 0.8 * clamp(pow(1.0 - abs(dot(rd, normal) - 0.1), 2.0), 0.0, 1.0);
-        reflctFilter *= fres;
 
-        col += diffuse * (1.0 - reflctFilter) * contributionLeft;
-        contributionLeft *= reflctFilter;
+        calcMaterialCommons(material, ptCrt, ptSph);
+
+        vec3 reflectivity = fres * getReflectivity(material, ptCrt, ptSph);
+        vec3 diffuse = incomingLight * getAlbedo(material, ptCrt, ptSph);
+        
+        col += diffuse * (1.0 - reflectivity) * contributionLeft;
+        contributionLeft *= reflectivity;
           
         ro = p + normal * 0.05;
         rd = reflect(rd, normal);
