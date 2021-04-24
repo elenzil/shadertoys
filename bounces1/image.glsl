@@ -50,6 +50,9 @@ void configScene() {
 
 }
 
+// this #define is a super awkward way of
+// having two versions of the map() function,
+// one which worries about local coordinates and one which doesn't.
 #define FOO                                               \
     int bMat = 0;                                         \
     gMapCalls += 1.0;                                     \
@@ -90,6 +93,7 @@ void configScene() {
     /* Blank Line */
 
 
+// returns just the SDF without calculating local coordinates, material, etc.
 float map(in vec3 p) {
 #define UN opUnion
 #define MI opMinus
@@ -99,6 +103,7 @@ float map(in vec3 p) {
     return d;
 }
 
+// returns the local coords.
 vec3 localCoords(in vec3 p, out int mat) {
 #undef UN
 #undef MI
