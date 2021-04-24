@@ -31,6 +31,7 @@ mat2  gSPh1Rot;
 vec3  gSph2Pos;
 float gSph2Rad;
 mat2  gSPh2Rot;
+vec3  gSph3Pos;
 float gSph3Rad;
 float gSphMod;
 
@@ -42,8 +43,11 @@ void configScene() {
     gSph2Pos    = vec3(-1.1, sin(gTime * 0.443) * 0.9, 0.0);
     gSph2Rad    = smoothstep(5.0, 20.0, gTime) * 0.7 + 0.01;
     gSPh2Rot    = rot2(abs(sin(gTime * 0.443 * 0.5 - PI/4.0)) * 15.0);
-    gSph3Rad    = 0.85 + sin(gTime) * 0.05;
     gSphMod     = sin(gTime * 0.231) * 25.0 + 25.0;
+
+    gSph3Rad    = 30.0;
+    gSph3Pos    = vec3(0.0, gSph3Rad + 1.7, 0.0);
+
 }
 
 #define FOO                                               \
@@ -65,6 +69,7 @@ void configScene() {
     P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
     d = IN(VARIABLE_ARGS, sdSphere(P, 1.3));              \
     */ \
+    bMat = 0;                                             \
                                                           \
     /* ball 1 */                                          \
     bMat = 1;                                             \
@@ -74,9 +79,15 @@ void configScene() {
     d = UN(VARIABLE_ARGS, sdSphere(P, gSph1Rad) + sphPerturb); \
     /* ball 2 */                                          \
     bMat = 2;                                             \
-    P = p - gSph2Pos;    \
-    P.zx *= gSPh2Rot;                            \
-    d = UN(VARIABLE_ARGS, sdSphere(P, gSph2Rad));
+    P = p - gSph2Pos;                                     \
+    P.zx *= gSPh2Rot;                                     \
+    d = UN(VARIABLE_ARGS, sdSphere(P, gSph2Rad));         \
+    /* ball 3 */                                          \
+    bMat = 3;                                             \
+    P = p - gSph3Pos;                                     \
+    P.y += sin(dot(p.xz, p.xz) * 0.3 - gTime) * 0.1; \
+    d = UN(VARIABLE_ARGS, sdSphere(P, gSph3Rad));         \
+    /* Blank Line */
 
 
 float map(in vec3 p) {
@@ -191,26 +202,48 @@ void calcMaterialCommons(in int material, in vec3 pCrt, in pol3 pPol) {
 
 
 vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
-    float dots = smoothstep(0.005, -0.005, length(vec2(pPol.phi * 2.5 * 2.0, sin((pPol.tht + 2.2) * 5.0 / 1.0))) - 0.4);
-    vec3 alb = albedo1;
-    alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((pPol.phi) * 2.0 + cos(pPol.tht * 5.0) * 0.3)));
-    alb = mix(alb, material == 1 ? albedo4 : albedo5, dots);
-    return alb;
+    if (material == 1 || material == 2) {
+        float dots = smoothstep(0.005, -0.005, length(vec2(pPol.phi * 2.5 * 2.0, sin((pPol.tht + 2.2) * 5.0 / 1.0))) - 0.4);
+        vec3 alb = albedo1;
+        alb = mix(alb, albedo3, 0.7 * smoothstep(0.25, 0.3, abs((pPol.phi) * 2.0 + cos(pPol.tht * 5.0) * 0.3)));
+        alb = mix(alb, material == 1 ? albedo4 : albedo5, dots);
+        return alb;
+    }
+    else if (material == 0) {
+        return vec3(0.7);
+    }
+    else if (material == 3) {
+        return vec3(0.1, 0.0, 0.0);
+    }
+    else {
+        discard;
+    }
 }
 
 vec3 getReflectivity(in int material, in vec3 pCrt, in pol3 pPol) {
-    vec3 reflectAmount = vec3(1.0, 0.8, 0.5) * (sin(gTime * 0.3) * 0.45 + 0.55);
-
-    float vertStripes = smoothstep(-0.02, 0.02, sin(pPol.tht * 5.0 + pPol.phi * 4.0) - 0.7);
-
-    float lid = smoothstep(0.27, 0.269, abs(pPol.phi) * 0.2);
 
     if (material == 0) {
-        reflectAmount *= 0.0;
+        return vec3(0.0);
     }
-    reflectAmount *= 0.2 + 0.8 * ((1.0 - vertStripes) * lid);
+    else if (material <= 2) {
+        vec3 reflectAmount = vec3(1.0, 0.8, 0.5) * (sin(gTime * 0.3) * 0.45 + 0.55);
 
-    return reflectAmount;
+        float vertStripes = smoothstep(-0.02, 0.02, sin(pPol.tht * 5.0 + pPol.phi * 4.0) - 0.7);
+
+        float lid = smoothstep(0.27, 0.269, abs(pPol.phi) * 0.2);
+
+        if (material == 0) {
+            reflectAmount *= 0.0;
+        }
+        reflectAmount *= 0.2 + 0.8 * ((1.0 - vertStripes) * lid);
+        return reflectAmount;
+    }
+    else if (material <= 3) {
+        return vec3(0.7, 0.0, 0.1);
+    }
+    else {
+        discard;
+    }
 }
 
 vec3 render(in vec3 ro, in vec3 rd) {
@@ -284,7 +317,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
 
     vec3 col = vec3(0.0);
 
-    vec3 camPt = vec3(cos(t), sin(t * 0.32) * 0.4, sin(t)) * -2.3;
+    vec3 camPt = vec3(cos(t), sin(t * 0.32) * 0.4, sin(t)) * -3.7;
     
     // camera's forward, right, and up vectors. right-handed.
     vec3 camFw = normalize(trgPt - camPt);
@@ -294,12 +327,12 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     
 
     // mess with camPt, just for fun
-    float messFac = luv < 1.0 ? 0.0 : 3.0 * (luv - 1.0);
-    camPt += camRt * messFac;
+    float messAmt = luv < 1.0 ? 0.0 : 0.2 * (luv - 1.0);
+    camPt += camRt * messAmt;
 
     // ray origin and direction
     vec3 ro    = camPt;
-    vec3 rd    = normalize(camFw + uv.x * camRt / (1.0 + messFac * 2.0) + uv.y * camUp / (1.0 + messFac * 2.0));
+    vec3 rd    = normalize(camFw + uv.x * camRt / (1.0 + messAmt * 2.0) + uv.y * camUp / (1.0 + messAmt * 2.0));
     
     const int maxSteps = 100;
     
