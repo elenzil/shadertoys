@@ -5,9 +5,6 @@
 #include <common.glsl>
 #endif
 
-// TODO TODO TODO
-// Move the calculation of object positions into a once-per-pixel calculation.
-
 vec3 sky(in vec3 rd);
 mat2 rot2(in float theta);
 vec3 directionToColor(in vec3 dir);
@@ -20,8 +17,9 @@ float opMinus2(inout vec3 localSpace, in vec3 bSpace, inout int material, in int
 float opIntsc2(inout vec3 localSpace, in vec3 bSpace, inout int material, in int bMaterial, in float a, in float b);
 
 float sdSphere(in vec3 p, in float r);
-float sdCylZ(in vec3 p, in vec3 c, in float r);
-float sdCylY(in vec3 p, in vec3 c, in float r);
+float sdCylZ(in vec3 p, in float r);
+float sdCylY(in vec3 p, in float r);
+float sdBox( vec3 p, vec3 b );
 
 float gMapCalls;
 
@@ -34,25 +32,22 @@ mat2  gSPh2Rot;
 vec3  gSph3Pos;
 float gSph3Rad;
 float gSphMod;
+mat2  gChannelRot;
 
 void configScene() {
     // move a bunch of trig etc out of the core map() routine and into once-per-fragment globals.
     gSph1Pos    = vec3( 1.1, sin(gTime * 0.343) * 0.9, 0.0);
-    gSph1Rad    = smoothstep(7.0, 30.0, gTime) * 0.7 + 0.01;
+    gSph1Rad    = smoothstep(0.5, 10.0, gTime) * 0.7 + 0.01;
     gSPh1Rot    = rot2(gTime * 0.81);
     gSph2Pos    = vec3(-1.1, sin(gTime * 0.443) * 0.9, 0.0);
-    gSph2Rad    = smoothstep(5.0, 20.0, gTime) * 0.7 + 0.01;
+    gSph2Rad    = smoothstep(1.0, 4.0, gTime) * 0.7 + 0.01;
     gSPh2Rot    = rot2(abs(sin(gTime * 0.443 * 0.5 - PI/4.0)) * 15.0);
     gSphMod     = sin(gTime * 0.231) * 25.0 + 25.0;
 
     gSph3Rad    = 30.0;
     gSph3Pos    = vec3(0.0, gSph3Rad + 1.7, 0.0);
-
 }
 
-// this #define is a super awkward way of
-// having two versions of the map() function,
-// one which worries about local coordinates and one which doesn't.
 #define FOO                                               \
     int bMat = 0;                                         \
     gMapCalls += 1.0;                                     \
@@ -60,18 +55,20 @@ void configScene() {
     p.y *= -1.0;                                          \
     vec3 P;                                               \
                                                           \
-    /* ground thing */                                    \
-    /*
-    bMat = 0;                                             \
-    P = p - vec3(0.0,  6.0, 0.0);                         \
-    d = UN(VARIABLE_ARGS, sdSphere(P, 5.0));              \
-    P = p - vec3(0.0,  6.0, 0.0);                         \
-    d = MI(VARIABLE_ARGS, sdSphere(P, 4.9));              \
-    P = vec3(abs(p.x), p.yz) - vec3(0.9, 0.9, 0.0);       \
-    d = MI(VARIABLE_ARGS, sdSphere(P, gSph3Rad));         \
-    P = vec3(abs(p.x), p.yz) - vec3(0.9, 1.8, 0.0);       \
-    d = IN(VARIABLE_ARGS, sdSphere(P, 1.3));              \
-    */ \
+    /* ball 3 */                                          \
+    bMat = 3;                                             \
+    P = p - gSph3Pos;                                     \
+ /*   P.y += sin(dot(p.xz, p.xz) * 0.3 - gTime) * 0.1; */ \
+    d = UN(VARIABLE_ARGS, sdSphere(P, gSph3Rad));         \
+     \
+    P = p - vec3(0.0, 1.0, 0.0); \
+    d = MI(VARIABLE_ARGS, -0.2 + sdBox(P, vec3(1.0, 1.0, 30.0))); \
+    d = MI(VARIABLE_ARGS, -0.2 + sdBox(P, vec3(30.0, 1.0, 1.0))); \
+/*    P = vec3(mod(p.x - gTime * 0.321 + 0.0, 2.5) - 1.0, p.y - 3.0, p.z); \
+    d = MI(VARIABLE_ARGS, -0.2 + sdSphere(P, 0.25)); \
+    P = vec3(mod(p.z - gTime * 0.321 + 1.25, 2.5) - 1.0, p.y - 3.0, p.x).zyx; \
+    d = MI(VARIABLE_ARGS, -0.2 + sdSphere(P, 0.25)); \ */ \
+    \
     bMat = 0;                                             \
                                                           \
     /* ball 1 */                                          \
@@ -85,15 +82,9 @@ void configScene() {
     P = p - gSph2Pos;                                     \
     P.zx *= gSPh2Rot;                                     \
     d = UN(VARIABLE_ARGS, sdSphere(P, gSph2Rad));         \
-    /* ball 3 */                                          \
-    bMat = 3;                                             \
-    P = p - gSph3Pos;                                     \
-    P.y += sin(dot(p.xz, p.xz) * 0.3 - gTime) * 0.1; \
-    d = UN(VARIABLE_ARGS, sdSphere(P, gSph3Rad));         \
     /* Blank Line */
 
 
-// returns just the SDF without calculating local coordinates, material, etc.
 float map(in vec3 p) {
 #define UN opUnion
 #define MI opMinus
@@ -103,7 +94,6 @@ float map(in vec3 p) {
     return d;
 }
 
-// returns the local coords.
 vec3 localCoords(in vec3 p, out int mat) {
 #undef UN
 #undef MI
@@ -218,7 +208,7 @@ vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
         return vec3(0.7);
     }
     else if (material == 3) {
-        return vec3(0.1, 0.0, 0.0);
+        return vec3(0.1, 0.1, 0.1);
     }
     else {
         discard;
@@ -244,7 +234,7 @@ vec3 getReflectivity(in int material, in vec3 pCrt, in pol3 pPol) {
         return reflectAmount;
     }
     else if (material <= 3) {
-        return vec3(0.7, 0.0, 0.1);
+        return vec3(0.0, 0.2, 0.7);
     }
     else {
         discard;
@@ -322,7 +312,9 @@ void mainImage( out vec4 RGBA, in vec2 XY )
 
     vec3 col = vec3(0.0);
 
-    vec3 camPt = vec3(cos(t), sin(t * 0.32) * 0.4, sin(t)) * -3.7;
+    float camTheta = t + ms.x * 1.5;
+    float camAlttd = sin(t * 0.32) * 0.2 + ms.y * 0.4;
+    vec3 camPt = vec3(cos(camTheta), camAlttd, sin(camTheta)) * -2.2;
     
     // camera's forward, right, and up vectors. right-handed.
     vec3 camFw = normalize(trgPt - camPt);
@@ -421,19 +413,24 @@ float sdSphere(in vec3 p, in float r) {
     return length(p) - r;
 }
 
-float sdCylZ(in vec3 p, in vec3 c, in float r) {
-    return length(p.xy - c.xy) - r;
+float sdCylZ(in vec3 p, in float r) {
+    return length(p.xy) - r;
 }
 
-float sdCylY(in vec3 p, in vec3 c, in float r) {
-    return length(p.xz - c.xz) - r;
+float sdCylY(in vec3 p, in float r) {
+    return length(p.xz) - r;
 }
 
 float sdPlaneY(in vec3 p)
 {
     return p.y;
 }
-
+// IQ:
+float sdBox( vec3 p, vec3 b )
+{
+  vec3 q = abs(p) - b;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
 
 #ifdef GRIMOIRE
 out vec4 fragColor; void main() { mainImage(fragColor, gl_FragCoord.xy); }
