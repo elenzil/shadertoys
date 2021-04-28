@@ -305,9 +305,20 @@ float sdRhombus(vec3 p, float la, float lb, float h, float ra)
 
 //------------------------------------------------------------------
 
-vec2 opU( vec2 d1, vec2 d2 )
+vec2 opU( in vec2 d1, in vec2 d2 )
 {
 	return (d1.x<d2.x) ? d1 : d2;
+}
+
+vec2 opM( in vec2 d1, in vec2 d2 )
+{
+    return (d1.x>-d2.x) ? d1 : d2;
+}
+
+
+vec2 opI( in vec2 d1, in vec2 d2 )
+{
+    return (d1.x>d2.x) ? d1 : d2;
 }
 
 //------------------------------------------------------------------
@@ -322,13 +333,14 @@ vec2 map( in vec3 pos )
 
     vec2 res = vec2( 1e10, 0.0 );
 
-    P = (pos - vec3(0.0, 0.34, 0.0)).xzy;
-    P.zy *= rot2(iTime);
-//    P.xy *= rot2(P.z * 2.0);
+    P = (pos - vec3(0.0, 0.5, 0.0)).xzy;
+//    P.zy *= rot2(iTime * 0.3);
+//    P.xy *= rot2(iTime * 2.0);
 
+//	res = opU( res, vec2( sdRhombus(P, 0.15, 0.25, 0.04, 0.08 ), 12.0 ) );
+    res = opU( res, vec2( sdSphere (P, 0.4                    ), 12.0 ) );
+    res = opM( res, vec2( sdSphere (P - vec3(0.0, 0.0, 0.4), 0.4),  5.2 ) );
 
-	res = opU( res, vec2( sdRhombus(P, 0.15, 0.25, 0.04, 0.08 ),12.0 ) );
-    
     return res;
 }
 
@@ -360,13 +372,8 @@ vec2 raycast( in vec3 ro, in vec3 rd )
     }
     //else return res;
     
-    // raymarch primitives   
-    vec2 tb = iBox( ro-vec3(0.0,0.4,-0.5), rd, vec3(2.5,0.41,3.0) );
-    if( tb.x<tb.y && tb.y>0.0 && tb.x<tmax)
-    {
-        //return vec2(tb.x,2.0);
-        tmin = max(tb.x,tmin);
-        tmax = min(tb.y,tmax);
+        tmin = 1.0; // max(tb.x,tmin);
+        tmax = 20.0; // min(tb.y,tmax);
 
         float t = tmin;
         for( int i=0; i<70 && t<tmax; i++ )
@@ -379,7 +386,6 @@ vec2 raycast( in vec3 ro, in vec3 rd )
             }
             t += h.x;
         }
-    }
     
     return res;
 }
