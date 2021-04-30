@@ -110,6 +110,26 @@ float opOnion( in float sdf, in float thickness )
     return abs(sdf)-thickness;
 }
 
+float sdMiraScope(in vec3 pos, in float separation, in float thickness) {
+    // convert pos to 2D by revolving it around Y
+    vec2 p = vec2(length(pos.xz), pos.y);
+
+    // an up and down facing parabola, a little apart
+    float sdTop = sdParabola(vec2(p.x, p.y + separation),  0.5);
+    float sdBot = sdParabola(vec2(p.x, p.y - separation), -0.5);
+
+    // intersected
+    float sdMira = max(sdTop, sdBot);
+
+    // onioned
+    sdMira = abs(sdMira) - thickness;
+
+    // slice off the top so we can see inside!
+    sdMira = max(sdMira, p.y - separation * 0.9);
+
+    return sdMira;
+}
+
 float map(in vec3 pos)
 {
     float d = 1e10;
@@ -119,17 +139,8 @@ float map(in vec3 pos)
     p.xy *= rot2(iTime * 0.77);
     p.zy *= rot2(iTime * 0.97);
 
-    float o = 0.0;
-    vec2 q = vec2(length(p.xz) - o, p.y);
-    float sep = 0.5;
-    vec2 up = vec2(0.0, 1.0);
-    float d1 = sdParabola(q + up * sep,  0.5);
-    float d2 = sdParabola(q - up * sep, -0.5);
-    float pd = max(d1, d2);
-    pd = opOnion(pd, 0.01);
-    pd = max(pd, p.y - sep * 0.9);
+    d = min(d, sdMiraScope(p, 0.5, 0.01));
 
-    d = min( d, pd );
     d = min( d, pos.y + 0.75);
 
     return d;
@@ -183,7 +194,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         vec3 rd = normalize(vec3(p-vec2(0.0,0.8),-3.5));
 
         float t = 3.0;
-        for( int i=0; i<100; i++ )
+        for( int i=0; i<60; i++ )
         {
             vec3 p = ro + t*rd;
             float h = map(p);
