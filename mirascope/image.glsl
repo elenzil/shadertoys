@@ -1,7 +1,15 @@
+// @oneshade's recent parabola stuff made me wonder if a working MiraScope was possible.
+// This was previously done by @benburrill [url]https://www.shadertoy.com/view/wtKGzd[/url] , that I could find.
+// UL: Cross-eyed stereo.
+// LL: Cut-Away.
+// R: Matte interior.
+
+
 #ifdef GRIMOIRE
 #include <common.glsl>
 #endif
 
+bool gDemoView  = false;
 bool gDebugView = false;
 mat2 gSceneRot  = mat2(1.0, 0.0, 0.0, 1.0);
 
@@ -129,6 +137,33 @@ float sdMiraScope(in vec3 pos, in float separation, in float thickness, in float
 
 //-----------------------------------------------------------------------
 
+
+// set up scene position of stuff once per pixel
+const float gMiraThickness = 0.01;
+const float gMiraSep       = 0.3;
+const float gMiraHole      = 0.25;
+const float gTableThick    = 0.01;
+
+
+vec3 gPosMira;
+vec3 gPosColumn;
+vec3 gPosCrate;
+vec3 gCrateSize;
+vec3 gPosTable;
+
+void configMap() {
+    const float columnDist = 0.565;
+    const float crateSize = 0.07;
+    const float crateLift = 0.014;
+ 
+    gPosMira   = vec3(0.0);
+    gPosColumn = vec3(columnDist, -0.22, columnDist);
+    gPosCrate  = vec3(0.0, -gMiraSep + crateSize + gMiraThickness + crateLift, 0.0);
+    gCrateSize = vec3(crateSize);
+    
+    gPosTable  = vec3(0.0, - gMiraSep - gMiraThickness - gTableThick - 0.1, 0.0);
+}
+
 // return.x = distance
 // return.y = material
 vec2 map(in vec3 p) {
@@ -137,35 +172,21 @@ vec2 map(in vec3 p) {
 
     vec2 Q = vec2(1e9, 0.0);
 
-    const float miraThickness = 0.01;
-    const float miraSep       = 0.3;
-    const float miraHole      = 0.25;
 
-    Q = opUnion(Q, vec2(sdMiraScope(p - vec3(0.0, 0.0, 0.0), miraSep, miraThickness, miraHole), 1.0)) ;
+    // mirascope
+    Q = opUnion(Q, vec2(sdMiraScope(p - gPosMira, gMiraSep, gMiraThickness, gMiraHole), 1.0)) ;
 
+    // 4 colums
     vec3 pAbs = vec3(abs(p.xz), p.y).xzy;
-    float columnDist = 0.565;
-    Q = opUnion(Q, vec2(sdCappedCylinder(pAbs - vec3(columnDist, -0.22, columnDist), 0.03, 0.3), 3.0));
+    Q = opUnion(Q, vec2(sdCappedCylinder(pAbs - gPosColumn, 0.03, 0.4), 3.0));
     
     if (gDebugView) {
+        // slice off half the mirascope + columns
         Q = opSubtraction(vec2(-p.z, 2), Q);
     }
 
-    float sphRad = 0.08;
-    float cylH   = 0.01;
-    float sphLift = (sin(gTime) * 0.5 + 0.5) * 0.0;
-//    Q = opUnion(Q, vec2(sdSphere(p - vec3(0.0, -miraSep + sphRad + miraThickness + sphLift, 0.0), sphRad), 2.0));
-//    Q = opUnion(Q, vec2(sdCappedCylinder(p - vec3(0.0, -miraSep + cylH + miraThickness + sphLift, 0.0), sphRad, cylH), 2.0)); 
-
-    Q = opUnion(Q, vec2(sdCrateBox(p - vec3(0.0, -miraSep + sphRad + miraThickness + sphLift, 0.0), vec3(sphRad * 0.9), 0.0) - 0.01, 4.0));
-
-    float tableThick = 0.01;
-    Q = opUnion(Q, vec2(sdCappedCylinder(p    -       vec3(0.0, - miraSep - miraThickness - tableThick - 0.1, 0.0), 0.9, tableThick), 3.0));
-
-//    Q = opUnion(Q, vec2(p.y - ( - miraSep - miraThickness - tableThick - 0.2), 3.0));
-
-
-    
+    Q = opUnion(Q, vec2(sdCrateBox(p - gPosCrate, vec3(gCrateSize), 0.0) - 0.01, 4.0));
+    Q = opUnion(Q, vec2(sdCappedCylinder(p    -       gPosTable, 0.9, gTableThick), 3.0));    
 
     return Q;
 }
@@ -207,7 +228,7 @@ vec3 calcNormal( in vec3 p ) // for function f(p)
     return normalize(n);
 }
 
-vec3 lightDirection = normalize(vec3(1.0, -5.0, 1.0));
+vec3 lightDirection = normalize(vec3(1.0, -4.0, 0.5));
 
 float calcDiffuseAmount(in vec3 p, in vec3 n) {
     return clamp(dot(n, -lightDirection), 0.0, 1.0);
@@ -222,7 +243,7 @@ float calcAOFactor(in vec3 p, in vec3 n) {
 }
 
 float calcShadowLight(in vec3 p) {
-    float t = march(p - lightDirection * 0.05, -lightDirection).x;
+    float t = march(p - lightDirection * 0.01, -lightDirection).x;
     return t > 40.0 ? 1.0 : 0.0;
 }
 
@@ -243,28 +264,37 @@ vec3 dirToRGB(in vec3 rd) {
 }
 
 vec3 sky(in vec3 rd) {
-    vec3 col = dirToRGB(rd);
+    vec3 col = normalize(dirToRGB(rd));
     col *= rd.y < 0.0 ? 0.5 : 1.0;
-    col = col * 0.25 + 0.25;
+    col = col * 0.1 + 0.1;
     return col;
 }
 
 vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
-    if (material == 1) {
-        return vec3(0.5);
-    }
-    else if (material == 2) {
+    if (material == 1 || material == 2) {
         float c = sin(pPol.tht * 5.0 + PI/2.0);
         c *= sin(pPol.rho * 19.0 + 19.0);
         c = smoothstep(-0.01, 0.01, c) * 0.1 + 0.1;
 
-        return vec3(c);
+        vec3 rgb1 = vec3(0.2);
+        vec3 rgb2 = vec3(c);
+        
+        if (material == 2) {
+            return rgb2;
+        }
+        else {
+            if (gDemoView) {
+                return mix(rgb1, rgb2, smoothstep(-0.4, 0.4, sin(gTime)));
+            }
+        }
     }
     else if (material == 3) {
         return vec3(0.2);
     }
     else if (material == 4) {
-        return dirToRGB(normalize(pCrt));
+        vec3 rgb = dirToRGB(normalize(pCrt - gPosCrate));
+        rgb /= length(rgb);
+        return rgb;
     }
     else {
         return vec3(1e9, 0.0, 1e9);
@@ -273,7 +303,13 @@ vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
 
 vec3 getReflectivity(in int material, in vec3 pCrt, in pol3 pPol) {
     if (material == 1) {
-        return vec3(0.9);
+        vec3 rgb = vec3(0.9);
+        if (gDemoView) {
+            return mix(rgb, vec3(0.0), smoothstep(-0.4, 0.4, sin(gTime)));
+        }
+        else {
+            return rgb;
+        }
     }
     else if (material == 2) {
         return vec3(0.0);
@@ -330,7 +366,7 @@ vec3 render(in vec3 ro, in vec3 rd) {
         float incomingLight = 1.0;
         incomingLight = min(incomingLight, calcDiffuseAmount(p, normal));
         incomingLight = min(incomingLight, calcShadowLight(p));
-        float ambient = 0.1 * calcAOFactor(p, normal);
+        float ambient = 0.2 * calcAOFactor(p, normal);
         incomingLight += ambient;
 
         float fres = 0.4 + 0.8 * clamp(pow(1.0 - abs(dot(rd, normal) - 0.1), 2.0), 0.0, 1.0);
@@ -355,8 +391,15 @@ vec3 render(in vec3 ro, in vec3 rd) {
 
 void mainImage( out vec4 RGBA, in vec2 XY ) {
     vec4 persistedInfo = texelFetch(iChannel0, ivec2(0, 0), 0);
+    
+    bool stereo = iMouse.x < iResolution.x * 0.1 && iMouse.y > iResolution.y * 0.9;
+    bool leftEye = XY.x > iResolution.x / 2.0;
+    
+    vec2 Res = iResolution.xy;
+    Res.x   *= stereo ? 0.5 : 1.0;
+    XY.x    -= (stereo && leftEye) ? iResolution.x / 2.0 : 0.0;
 
-    setupCoords(iResolution.xy, 4.4);
+    setupCoords(Res, 4.4);
     setupTime(persistedInfo[2]);
     vec2  uv        = worldFromScreen(XY);
     vec2  ms        = iMouse.xy / iResolution.xy * 2.0 - 1.0;
@@ -370,18 +413,31 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
     float camTheta = -ms.x * PI * 1.25;
     float camAlttd = sin(t * 0.32) * 0.2 - (ms.y - 0.9) * 3.0;
     
-    gDebugView      = length(iMouse.xy) < gCanvasSmallRes * 0.1;
+    bool defaultView = stereo || length(iMouse.xy) < 1.0;
+    gDebugView      = !defaultView && (length(iMouse.xy) < gCanvasSmallRes * 0.1);
     if (gDebugView) {
         camTheta = sin(iTime * 0.10) * 0.1;
         camAlttd = sin(iTime * 0.12) * 0.1;
     }
+    else if (defaultView) {
+        camAlttd = 1.1;
+    }
     
-    vec3 camPt = vec3(sin(camTheta), camAlttd, cos(camTheta)) * (gDebugView ? 4.0 : 4.0);
+    gDemoView = gDebugView || iMouse.x > iResolution.x * 0.9;
+    
+    vec3 camPt = vec3(sin(camTheta), camAlttd, cos(camTheta)) * (gDebugView ? 1.7 : 4.0);
     
     // camera's forward, right, and up vectors. right-handed.
     vec3 camFw = normalize(trgPt - camPt);
     vec3 camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
     vec3 camUp = cross(camRt, camFw);
+    
+    if (stereo && leftEye) {
+        camPt -= camRt * 0.4;
+        camFw = normalize(trgPt - camPt);
+        camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
+        camUp = cross(camRt, camFw);
+    }
 
     // ray origin and direction
     vec3 ro    = camPt;
@@ -389,7 +445,16 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
 
     gSceneRot = rot2(gTime * 0.2);
 
+    configMap();
     vec3 rgb = render(ro, rd);
+
+
+    // Vignette from Ippokratis https://www.shadertoy.com/view/lsKSWR
+    vec2 pq = XY / Res;   
+    pq *=  1.0 - pq.yx;    
+    float vig = pq.x*pq.y * 200.0;    
+    vig = pow(vig, 0.15);
+    rgb *= vig;
 
     rgb = sqrt(rgb);
 
