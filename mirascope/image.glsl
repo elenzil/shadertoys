@@ -3,6 +3,7 @@
 #endif
 
 bool gDebugView = false;
+mat2 gSceneRot  = mat2(1.0, 0.0, 0.0, 1.0);
 
 struct pol3 {
     float rho;
@@ -49,6 +50,11 @@ float sdCappedCylinder( vec3 p, float h, float r )
 {
   vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(h,r);
   return min(max(d.x,d.y),0.0) + length(max(d,0.0));
+}
+
+float sdCylinder( vec3 p, float r )
+{
+  return length(p.xz) - r;
 }
 
 float sdCappedCylinderPrecomputedQ(vec2 q, float h, float r)
@@ -126,30 +132,45 @@ float sdMiraScope(in vec3 pos, in float separation, in float thickness, in float
 // return.x = distance
 // return.y = material
 vec2 map(in vec3 p) {
+
+    p.xz *= gSceneRot;
+
     vec2 Q = vec2(1e9, 0.0);
- 
-    const float miraThickness = 0.005;
+
+    const float miraThickness = 0.01;
     const float miraSep       = 0.3;
     const float miraHole      = 0.25;
 
     Q = opUnion(Q, vec2(sdMiraScope(p - vec3(0.0, 0.0, 0.0), miraSep, miraThickness, miraHole), 1.0)) ;
+
+    vec3 pAbs = vec3(abs(p.xz), p.y).xzy;
+    float columnDist = 0.565;
+    Q = opUnion(Q, vec2(sdCappedCylinder(pAbs - vec3(columnDist, -0.22, columnDist), 0.03, 0.3), 3.0));
     
+    if (gDebugView) {
+        Q = opSubtraction(vec2(-p.z, 2), Q);
+    }
+
     float sphRad = 0.08;
     float cylH   = 0.01;
     float sphLift = (sin(gTime) * 0.5 + 0.5) * 0.0;
 //    Q = opUnion(Q, vec2(sdSphere(p - vec3(0.0, -miraSep + sphRad + miraThickness + sphLift, 0.0), sphRad), 2.0));
 //    Q = opUnion(Q, vec2(sdCappedCylinder(p - vec3(0.0, -miraSep + cylH + miraThickness + sphLift, 0.0), sphRad, cylH), 2.0)); 
 
-    Q = opUnion(Q, vec2(sdCrateBox(p - vec3(0.0, -miraSep + sphRad + miraThickness + sphLift, 0.0), vec3(sphRad * 0.9), 0.0) - 0.005, 2.0));
+    Q = opUnion(Q, vec2(sdCrateBox(p - vec3(0.0, -miraSep + sphRad + miraThickness + sphLift, 0.0), vec3(sphRad * 0.9), 0.0) - 0.01, 4.0));
 
-    if (gDebugView) {
-        Q = opSubtraction(vec2(-p.z, 2), Q);
-    }
+    float tableThick = 0.01;
+    Q = opUnion(Q, vec2(sdCappedCylinder(p    -       vec3(0.0, - miraSep - miraThickness - tableThick - 0.1, 0.0), 0.9, tableThick), 3.0));
+
+//    Q = opUnion(Q, vec2(p.y - ( - miraSep - miraThickness - tableThick - 0.2), 3.0));
+
+
+    
 
     return Q;
 }
 
-const float closeEps = 0.002;
+const float closeEps = 0.001;
 
 vec2 march(in vec3 ro, in vec3 rd) {
     const int maxSteps = 100;
@@ -192,10 +213,10 @@ float calcDiffuseAmount(in vec3 p, in vec3 n) {
     return clamp(dot(n, -lightDirection), 0.0, 1.0);
 }
 
-const float AOFactorMin = 0.2;
+const float AOFactorMin = 0.7;
 const float AOFactorMax = 1.0;
 float calcAOFactor(in vec3 p, in vec3 n) {
-    const float sampleDist = 0.4;
+    const float sampleDist = 0.1;
     float dist = smoothstep(0.0, sampleDist, map(p + n * sampleDist).x);
     return mix(AOFactorMin, AOFactorMax, (dist));
 }
@@ -211,12 +232,39 @@ const vec3 albedo3 = vec3(0.5, 0.1, 0.2);
 const vec3 albedo4 = vec3(1.0, 1.0, 0.2);
 const vec3 albedo5 = vec3(1.0, 0.2, 0.2);
 
+vec3 dirToRGB(in vec3 rd) {
+    float tht = atan(rd.z, rd.x);
+    float phi = acos(dot(normalize(rd), vec3(0.0, 1.0, 0.0)));
+    vec3 col = rd * 0.5 + 0.5;
+    col *= smoothstep(0.002, -0.002, sin(tht       * 4.0)) * -0.3 + 1.0;
+    col *= smoothstep(0.002, -0.002, sin(phi * 2.0 * 4.0)) * -0.3 + 1.0;
+    col = mix(col, col / max(col.r, max(col.g, col.b)), 0.2);
+    return col;
+}
+
+vec3 sky(in vec3 rd) {
+    vec3 col = dirToRGB(rd);
+    col *= rd.y < 0.0 ? 0.5 : 1.0;
+    col = col * 0.25 + 0.25;
+    return col;
+}
+
 vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
     if (material == 1) {
-        return vec3(0.82);
+        return vec3(0.5);
     }
     else if (material == 2) {
-        return vec3(1.0, 1.0, 1.0);
+        float c = sin(pPol.tht * 5.0 + PI/2.0);
+        c *= sin(pPol.rho * 19.0 + 19.0);
+        c = smoothstep(-0.01, 0.01, c) * 0.1 + 0.1;
+
+        return vec3(c);
+    }
+    else if (material == 3) {
+        return vec3(0.2);
+    }
+    else if (material == 4) {
+        return dirToRGB(normalize(pCrt));
     }
     else {
         return vec3(1e9, 0.0, 1e9);
@@ -225,10 +273,16 @@ vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
 
 vec3 getReflectivity(in int material, in vec3 pCrt, in pol3 pPol) {
     if (material == 1) {
-        return vec3(0.7);
+        return vec3(0.9);
     }
     else if (material == 2) {
         return vec3(0.0);
+    }
+    else if (material == 3) {
+        return vec3(0.2);
+    }
+    else if (material == 4) {
+        return vec3(0.2);
     }
     else {
         return vec3(0.0, 1e9, 0.0);
@@ -236,32 +290,16 @@ vec3 getReflectivity(in int material, in vec3 pCrt, in pol3 pPol) {
 }
 
 vec3 getEmissive(in int material, in vec3 pCrt, in pol3 pPol) {
-    if (material == 2) {
-        return vec3(0.2, 0.0, 0.0);
-    }
-    else {
-        return vec3(0.0);
-    }
+    return vec3(0.0);
 }
 
 
 //------------------------------------------------------------------------------
 
-vec3 sky(in vec3 rd) {
-    float tht = atan(rd.z, rd.x);
-    float phi = acos(dot(normalize(rd), vec3(0.0, 1.0, 0.0)));
-    vec3 col = rd * 0.5 + 0.5;
-    col *= smoothstep(0.002, -0.002, sin(tht       * 4.0)) * -0.3 + 1.0;
-    col *= smoothstep(0.002, -0.002, sin(phi * 2.0 * 4.0)) * -0.3 + 1.0;
-    col = mix(col, col / max(col.r, max(col.g, col.b)), 0.2);
-    col *= rd.y < 0.0 ? 0.5 : 1.0;
-    return col;
-}
-
 vec3 render(in vec3 ro, in vec3 rd) {
     vec3 rgb = vec3(0.0);
 
-    int bouncesLeft = 14;
+    int bouncesLeft = 20;
 
     vec3 contributionLeft = vec3(1.0);
 
@@ -277,15 +315,22 @@ vec3 render(in vec3 ro, in vec3 rd) {
         vec3 normal = calcNormal(p);
 
         vec3 ptCrt = p;
+        ptCrt.xz *= gSceneRot;
         pol3 ptSph = sphericalFromCartesian(ptCrt);
 
-
         int material = int(q.y);
+
+        // distinguish inside and outside of mirascope
+        if (material == 1) {
+            if (dot(p, normal) > 0.0 || abs(normal.y) < 0.7) {
+                material = 2;
+            }
+        }
 
         float incomingLight = 1.0;
         incomingLight = min(incomingLight, calcDiffuseAmount(p, normal));
         incomingLight = min(incomingLight, calcShadowLight(p));
-        float ambient = 0.5 * calcAOFactor(p, normal);
+        float ambient = 0.1 * calcAOFactor(p, normal);
         incomingLight += ambient;
 
         float fres = 0.4 + 0.8 * clamp(pow(1.0 - abs(dot(rd, normal) - 0.1), 2.0), 0.0, 1.0);
@@ -322,8 +367,8 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
     float t = gTime * 0.23;
     vec3 trgPt = vec3(0.0);
     
-    float camTheta = t - ms.x * PI * 1.25;
-    float camAlttd = sin(t * 0.32) * 0.2 - ms.y * 8.0;
+    float camTheta = -ms.x * PI * 1.25;
+    float camAlttd = sin(t * 0.32) * 0.2 - (ms.y - 0.9) * 3.0;
     
     gDebugView      = length(iMouse.xy) < gCanvasSmallRes * 0.1;
     if (gDebugView) {
@@ -331,7 +376,7 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
         camAlttd = sin(iTime * 0.12) * 0.1;
     }
     
-    vec3 camPt = vec3(sin(camTheta), camAlttd, cos(camTheta)) * (gDebugView ? 2.0 : 4.0);
+    vec3 camPt = vec3(sin(camTheta), camAlttd, cos(camTheta)) * (gDebugView ? 4.0 : 4.0);
     
     // camera's forward, right, and up vectors. right-handed.
     vec3 camFw = normalize(trgPt - camPt);
@@ -342,7 +387,11 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
     vec3 ro    = camPt;
     vec3 rd    = normalize(camFw + uv.x * camRt + uv.y * camUp);
 
+    gSceneRot = rot2(gTime * 0.2);
+
     vec3 rgb = render(ro, rd);
+
+    rgb = sqrt(rgb);
 
     RGBA = vec4(rgb, 1.0);
 }
