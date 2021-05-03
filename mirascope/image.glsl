@@ -12,6 +12,11 @@
 bool gDemoView  = false;
 bool gDebugView = false;
 mat2 gSceneRot  = mat2(1.0, 0.0, 0.0, 1.0);
+const float gutter = 0.175;
+const float gutterInv = 1.0 - gutter;
+
+// positive for cross-eyed, make negative for wall-eyed viewing.
+const float stereoSeparation = 0.4;
 
 struct pol3 {
     float rho;
@@ -35,7 +40,7 @@ float maxPart(vec3 v) {
 
 //--------------------------------------------------------------------------------
 
-// I forget the location, but this pattern from IQ.
+// I forget the location, but this pattern is from IQ.
 
 vec2 opUnion(in vec2 q1, in vec2 q2) {
     return q1.x < q2.x ? q1 : q2;
@@ -182,7 +187,7 @@ vec2 map(in vec3 p) {
     
     if (gDebugView) {
         // slice off half the mirascope + columns
-        Q = opSubtraction(vec2(-p.z, 2), Q);
+        Q = opSubtraction(vec2(p.z, 2), Q);
     }
 
     Q = opUnion(Q, vec2(sdCrateBox(p - gPosCrate, vec3(gCrateSize), 0.0) - 0.01, 4.0));
@@ -228,16 +233,16 @@ vec3 calcNormal( in vec3 p ) // for function f(p)
     return normalize(n);
 }
 
-vec3 lightDirection = normalize(vec3(1.0, -4.0, 0.5));
+vec3 lightDirection = normalize(vec3(1.0, -4.0, -0.5));
 
 float calcDiffuseAmount(in vec3 p, in vec3 n) {
     return clamp(dot(n, -lightDirection), 0.0, 1.0);
 }
 
-const float AOFactorMin = 0.7;
+const float AOFactorMin = 0.5;
 const float AOFactorMax = 1.0;
 float calcAOFactor(in vec3 p, in vec3 n) {
-    const float sampleDist = 0.1;
+    const float sampleDist = 0.03;
     float dist = smoothstep(0.0, sampleDist, map(p + n * sampleDist).x);
     return mix(AOFactorMin, AOFactorMax, (dist));
 }
@@ -272,9 +277,11 @@ vec3 sky(in vec3 rd) {
 
 vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
     if (material == 1 || material == 2) {
-        float c = sin(pPol.tht * 5.0 + PI/2.0);
-        c *= sin(pPol.rho * 19.0 + 19.0);
-        c = smoothstep(-0.01, 0.01, c) * 0.1 + 0.1;
+        float th = mod((pPol.tht + 0.5 + pPol.rho * 7.0 * sign(pCrt.y)) * 5.0, PI * 2.0) / 5.0 - 0.5;
+        float rh = mod((pPol.rho * 5.0 + 1.15), 1.0) - 0.5;
+        float x = length(vec2(th, rh) * 5.0) - 2.0;
+        float c = smoothstep(0.17, 0.0, x);
+        c = c * 0.2 + 0.1;
 
         vec3 rgb1 = vec3(0.2);
         vec3 rgb2 = vec3(c);
@@ -284,7 +291,7 @@ vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
         }
         else {
             if (gDemoView) {
-                return mix(rgb1, rgb2, smoothstep(-0.4, 0.4, sin(gTime)));
+                return mix(rgb1, rgb2, smoothstep(-0.4, 0.4, sin(gTime * 2.0)));
             }
         }
     }
@@ -392,14 +399,14 @@ vec3 render(in vec3 ro, in vec3 rd) {
 void mainImage( out vec4 RGBA, in vec2 XY ) {
     vec4 persistedInfo = texelFetch(iChannel0, ivec2(0, 0), 0);
     
-    bool stereo = iMouse.x < iResolution.x * 0.1 && iMouse.y > iResolution.y * 0.9;
+    bool stereo = iMouse.x < iResolution.x * gutter && iMouse.y > iResolution.y * gutterInv;
     bool leftEye = XY.x > iResolution.x / 2.0;
     
     vec2 Res = iResolution.xy;
     Res.x   *= stereo ? 0.5 : 1.0;
     XY.x    -= (stereo && leftEye) ? iResolution.x / 2.0 : 0.0;
 
-    setupCoords(Res, 4.4);
+    setupCoords(Res, 4.2);
     setupTime(persistedInfo[2]);
     vec2  uv        = worldFromScreen(XY);
     vec2  ms        = iMouse.xy / iResolution.xy * 2.0 - 1.0;
@@ -408,13 +415,13 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
     // look-from and look-to points
     // right-handed system where x is right, y is up, z is forward.
     float t = gTime * 0.23;
-    vec3 trgPt = vec3(0.0);
+    vec3 trgPt = vec3(0.0, -0.2, 0.0);
     
     float camTheta = -ms.x * PI * 1.25;
     float camAlttd = sin(t * 0.32) * 0.2 - (ms.y - 0.9) * 3.0;
     
     bool defaultView = stereo || length(iMouse.xy) < 1.0;
-    gDebugView      = !defaultView && (length(iMouse.xy) < gCanvasSmallRes * 0.1);
+    gDebugView      = !defaultView && (length(iMouse.xy) < iResolution.x * gutter);
     if (gDebugView) {
         camTheta = sin(iTime * 0.10) * 0.1;
         camAlttd = sin(iTime * 0.12) * 0.1;
@@ -423,7 +430,7 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
         camAlttd = 1.1;
     }
     
-    gDemoView = gDebugView || iMouse.x > iResolution.x * 0.9;
+    gDemoView = gDebugView || iMouse.x > iResolution.x * gutterInv;
     
     vec3 camPt = vec3(sin(camTheta), camAlttd, cos(camTheta)) * (gDebugView ? 1.7 : 4.0);
     
@@ -432,8 +439,8 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
     vec3 camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
     vec3 camUp = cross(camRt, camFw);
     
-    if (stereo && leftEye) {
-        camPt -= camRt * 0.4;
+    if (stereo) {
+        camPt += camRt * (leftEye ? -1.0 : 1.0) * stereoSeparation / 2.0;
         camFw = normalize(trgPt - camPt);
         camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
         camUp = cross(camRt, camFw);
@@ -443,7 +450,7 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
     vec3 ro    = camPt;
     vec3 rd    = normalize(camFw + uv.x * camRt + uv.y * camUp);
 
-    gSceneRot = rot2(gTime * 0.2);
+    gSceneRot = rot2(gTime * PI * 2.0 / 30.0);
 
     configMap();
     vec3 rgb = render(ro, rd);
