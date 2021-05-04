@@ -293,6 +293,9 @@ vec3 getAlbedo(in int material, in vec3 pCrt, in pol3 pPol) {
             if (gDemoView) {
                 return mix(rgb1, rgb2, smoothstep(-0.4, 0.4, sin(gTime * 2.0)));
             }
+            else {
+                return rgb2;
+            }
         }
     }
     else if (material == 3) {
