@@ -5,13 +5,13 @@
 
 void mainImage( out vec4 RGBA, in vec2 XY )
 {
-    ivec2 IJ = ivec2(XY);
-    
-   if (iFrame < 1) {
+    if (iFrame < 1) {
         RGBA = vec4(iResolution.x/2.0, iResolution.y/3.0, -1e9, 0.0);
         return;
-   }
+    }
 
+    ivec2 IJ = ivec2(XY);
+    
     if (IJ != ivec2(0)) {
         RGBA = vec4(0.0);
         return;
