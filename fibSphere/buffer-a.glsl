@@ -13,7 +13,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     }
     
     if (iFrame == 0) {
-        RGBA = vec4(0.0, 0.0, -1e9, 0.0);
+        RGBA = vec4(iResolution.xy/2.0, -1e9, 0.0);
     }
     
     // data.xy = use this as mouse point, other buffers.
@@ -22,7 +22,7 @@ void mainImage( out vec4 RGBA, in vec2 XY )
     vec4 data = texelFetch(iChannel0, IJ, 0);
      
      
-    bool prevMouseDown = data.z   > -1.0;
+    bool prevMouseDown = data.z   >  0.0;
     bool currMouseDown = iMouse.z >  0.0;
      
     vec2 prevMp = prevMouseDown ? data.zw : iMouse.xy;

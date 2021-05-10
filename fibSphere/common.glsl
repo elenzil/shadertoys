@@ -2,8 +2,9 @@
 // Fork of "boilerplate stuff" by elenzil. https://shadertoy.com/view/7dX3R2
 // 2021-04-05 18:18:15
 
-const float PI  = 3.14159265359;
-const float TAO = PI * 2.0;
+const float PI      = 3.14159265359;
+const float TAO     = PI * 2.0;
+const float DEG2RAD = TAO / 360.0;
 
 // global time parameter
 float gTime;

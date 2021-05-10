@@ -1,3 +1,5 @@
+// sky from @Gijs's [url=https://www.shadertoy.com/view/7dSSzy]Basic : Less Simple Atmosphere[/url].
+
 // Fork of "mirascope" by elenzil. https://shadertoy.com/view/NdjXzw
 // 2021-05-07 16:22:59
 
@@ -38,6 +40,53 @@ float maxPart(vec3 v) {
 
 //--------------------------------------------------------------------------------
 
+// direction to the light
+vec3 gLightDirection = normalize(vec3(-1.0, 2.0, 0.5));
+
+//--------------------------------------------------------------------------------
+
+vec3  SUN_COLOR = vec3(1.0,1.0,1.0);
+vec3  SKY_SCATTERING = vec3(0.1, 0.3, 0.7);
+// vec3  SUN_VECTOR;
+float SUN_ANGULAR_DIAMETER = 0.08;
+float CAMERA_HEIGHT = -0.3;
+
+
+// Consider an atmosphere of constant density & isotropic scattering 
+// Occupying, in the y axis, from -infty to 0
+// This shaders ``solves'' that atmosphere analytically.
+
+float atmosphereDepth(vec3 pos, vec3 dir)
+{
+    return max(-pos.y, 0.0)/ max(dir.y, 0.0);
+}
+
+vec3 transmittance(float l)
+{
+    return exp(-l * SKY_SCATTERING);
+}
+
+vec3 simple_sun(vec3 dir)
+{
+    //sometimes |dot(dir, SUN_VECTOR)| > 1 by a very small amount, this breaks acos
+    float a = acos(clamp(dot(dir, gLightDirection),-1.0,1.0));
+    float t = 0.005;
+    float e = smoothstep(SUN_ANGULAR_DIAMETER*0.5 + t, SUN_ANGULAR_DIAMETER*0.5, a);
+    return SUN_COLOR * e;
+}
+
+vec3 simple_sky(vec3 p, vec3 d)
+{
+    float l = atmosphereDepth(p, d);
+    vec3 sun = simple_sun(d) * transmittance(l);
+    float f = 1.0 - d.y / gLightDirection.y;
+    float l2 = atmosphereDepth(p, gLightDirection);
+    vec3 sk = simple_sun(gLightDirection) * transmittance(l2) / f * (1.0 - transmittance(f*l));
+    return sun + sk;
+}
+
+//--------------------------------------------------------------------------------
+
 // I forget the location, but this pattern is from IQ.
 
 vec2 opUnion(in vec2 q1, in vec2 q2) {
@@ -54,6 +103,9 @@ float opSubtraction( float d1, float d2 ) { return max(-d1,d2); }
 
 float opIntersection( float d1, float d2 ) { return max(d1,d2); }
 
+// swap args from stock subtraction().
+vec2 opMinus( in vec2 q1, in vec2 q2 ) { return opSubtraction(q2, q1); }
+
 //--------------------------------------------------------------------------------
 
 // https://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
@@ -66,6 +118,10 @@ float sdCappedCylinder( vec3 p, float h, float r )
 float sdCylinder( vec3 p, float r )
 {
   return length(p.xz) - r;
+}
+
+float sdSlab(in vec3 p, float r) {
+    return abs(p.y) - r;
 }
 
 float sdCappedCylinderPrecomputedQ(vec2 q, float h, float r)
@@ -184,13 +240,13 @@ float sdFibSphere(in vec3 pos, in float rad1, in float rad2) {
 
     float d = 1e9;
     
-    // early-out
-    /* hmm
-    float sdBounds = sdSphere(pos, rad1 + rad2);
-    if (sdBounds > 0.0) {
-        return sdBounds + rad2;
+    // early-out.
+    // this approach to bounding volume destroys exactness of SDF.
+    // discussion in https://www.shadertoy.com/view/ssBXRG
+    float sdBounds = abs(sdSphere(pos, rad1)) - rad2;
+    if (sdBounds > rad2 * 0.2) {
+        return sdBounds;
     }
-    */
 
     // golden angle
     const float phi = 3.14159265359 * (3.0 - sqrt(5.0));
@@ -228,56 +284,49 @@ float sdTheMainAttraction(in vec3 pos) {
 
 
 // set up scene position of stuff once per pixel
-const float gMiraThickness = 0.01;
-const float gMiraSep       = 0.3;
-const float gMiraHole      = 0.25;
-const float gTableThick    = 0.01;
+const float gBevels        = 0.01;
 
-
-vec3 gPosMain;
-vec3 gPosColumn;
-vec3 gPosCrate;
-vec3 gCrateSize;
-vec3 gPosTable;
+vec3  gCamPos;
+vec3  gPosMain;
+vec3  gTablePos;
+float gTableRad;
+float gTableThick;
+float gTableHoleRad;
 
 void configMap() {
-    const float columnDist = 0.565;
-    const float crateSize = 0.07;
-    const float crateLift = 0.014;
  
-    gPosMain   = vec3(0.0, 0.3, 0.0);
-    gPosColumn = vec3(columnDist, -0.22, columnDist);
-    gPosCrate  = vec3(0.0, -gMiraSep + crateSize + gMiraThickness + crateLift, 0.0);
-    gCrateSize = vec3(crateSize);
+    gPosMain      = vec3(0.0, 0.3, 0.0);
     
-    gPosTable  = vec3(0.0, - gMiraSep - gMiraThickness - gTableThick - 0.1, 0.0);
+    gTablePos     = vec3(0.0, -0.4, 0.0);
+    
+    float tableMod = smoothstep(1.0, -2.0, gCamPos.y - gTablePos.y);
+    gTableRad     = 0.9;
+    gTableThick   = 0.01 + 0.6 * tableMod;
+    gTablePos.y   += 0.6 * tableMod;
+    gTableHoleRad = (gTableRad - gBevels * 2.0) * tableMod;
 }
 
 // return.x = distance
 // return.y = material
 vec2 map(in vec3 p) {
 
-    const float bevels = 0.01;
 
     p.xz *= gSceneRot;
 
-    vec2 Q = vec2(1e9, 0.0);
+    vec2 Q  = vec2(1e9, 0.0);
+    const float modSize = 0.3;
+    vec3 p1 = vec3(p.x, mod(p.y + modSize / 2.0, modSize) - modSize / 2.0, p.z);
+
+    
+    // table
+    Q = opUnion(Q, vec2(sdCappedCylinder(p    -       gTablePos, gTableRad, gTableThick), 3.0));    
+    Q = opMinus(Q, vec2(sdCylinder(p, gTableHoleRad), 3.0));
+    Q = opMinus(Q, vec2(sdSlab(p1, 0.05), 3.0));
+    Q.x -= gBevels;
     
     Q = opUnion(Q, vec2(sdTheMainAttraction(p - gPosMain), 1.0));
     Q = opUnion(Q, vec2(sdSphere(p - gPosMain, 0.2), 3.0));
-    
 
-    // 4 colums
-    // vec3 pAbs = vec3(abs(p.xz), p.y).xzy;
-    // Q = opUnion(Q, vec2(sdCappedCylinder(pAbs - gPosColumn, 0.03, 0.4) - bevels, 3.0));
-    
-    if (gDebugView) {
-        // slice off half the mirascope + columns
-        Q = opSubtraction(vec2(p.z, 2), Q);
-    }
-
-    // table
-    Q = opUnion(Q, vec2(sdCappedCylinder(p    -       gPosTable, 0.9, gTableThick) - bevels, 3.0));    
 
     return Q;
 }
@@ -319,10 +368,9 @@ vec3 calcNormal( in vec3 p ) // for function f(p)
     return normalize(n);
 }
 
-vec3 gLightDirection = normalize(vec3(1.0, -2.0, -0.5));
 
 float calcDiffuseAmount(in vec3 p, in vec3 n) {
-    return clamp(dot(n, -gLightDirection), 0.0, 1.0);
+    return clamp(dot(n, gLightDirection), 0.0, 1.0);
 }
 
 const float AOFactorMin = 0.5;
@@ -334,7 +382,7 @@ float calcAOFactor(in vec3 p, in vec3 n) {
 }
 
 float calcShadowLight(in vec3 p) {
-    float t = march(p - gLightDirection * 0.0, -gLightDirection).x;
+    float t = march(p, gLightDirection).x;
     return t > 40.0 ? 1.0 : 0.0;
 }
 
@@ -356,8 +404,10 @@ vec3 dirToRGB2(in vec3 rd) {
 vec3 sky(in vec3 rd) {
     vec3 col = dirToRGB(rd);
 //  col = normalize(col);
-    col *= rd.y < 0.0 ? 0.5 : 1.0;
     col = col * 0.3;
+    vec3 ss = simple_sky(vec3(0.0, -0.3, 0.0), vec3(rd.x, rd.y, rd.z));
+    col = mix(col, ss, 0.5);    
+    col *= smoothstep(-0.01, 0.01, rd.y + 0.03) * 0.5 + 0.5;
     return col;
 }
 
@@ -449,6 +499,7 @@ vec3 render(in vec3 ro, in vec3 rd) {
 }
 
 
+
 void mainImage( out vec4 RGBA, in vec2 XY ) {
     vec4 persistedInfo = texelFetch(iChannel0, ivec2(0, 0), 0);
     
@@ -470,46 +521,54 @@ void mainImage( out vec4 RGBA, in vec2 XY ) {
     float t = gTime * 0.23;
     vec3 trgPt = vec3(0.0, 0.1, 0.0);
     
-    float camTheta = -ms.x * PI * 1.25;
-    float camAlttd = sin(t * 0.32) * 0.2 - (ms.y - 0.9) * 3.0;
+    float camTht = -ms.x * PI * 1.25;
+    float camPhi = ms.y;
     
     bool defaultView = stereo || length(iMouse.xy) < 1.0;
  //   gDebugView      = !defaultView && (length(iMouse.xy) < iResolution.x * gutter);
     if (gDebugView) {
-        camTheta = sin(iTime * 0.10) * 0.1;
-        camAlttd = sin(iTime * 0.12) * 0.1;
+        camTht = sin(iTime * 0.10) * 0.1;
+        camPhi = sin(iTime * 0.12) * 0.1;
     }
     else if (defaultView) {
-        camAlttd = 1.1;
+        camPhi = -20.0 * DEG2RAD;
     }
+    
+    mat2 camThtRot2 = rot2(camTht);
+    mat2 camPhiRot2 = rot2(camPhi);
     
     gDemoView = gDebugView || iMouse.x > iResolution.x * gutterInv;
     
-    vec3 camPt = vec3(sin(camTheta), camAlttd, cos(camTheta)) * (gDebugView ? 1.7 : 4.0);
+    gSceneRot = rot2(gTime * PI * 2.0 / 30.0);
+    // anchor the light to the camera
+    gLightDirection.xz *= -camThtRot2;
+
+    
+    vec3 camPt = vec3(0.0, 0.0, -1.0);
+    camPt.yz *= camPhiRot2;
+    camPt.xz *= camThtRot2;
+    camPt *= gDebugView ? 1.7 : 4.0;
     
     // camera's forward, right, and up vectors. right-handed.
     vec3 camFw = normalize(trgPt - camPt);
-    vec3 camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
+    vec3 camRt = normalize(cross(camFw, vec3(0.0, 1.0, 0.0)));
     vec3 camUp = cross(camRt, camFw);
     
     if (stereo) {
         camPt += camRt * (leftEye ? -1.0 : 1.0) * stereoSeparation / 2.0;
         camFw = normalize(trgPt - camPt);
-        camRt = cross(camFw, vec3(0.0, 1.0, 0.0));
+        camRt = normalize(cross(camFw, vec3(0.0, 1.0, 0.0)));
         camUp = cross(camRt, camFw);
     }
+    
+    gCamPos = camPt;
+    configMap();
 
     // ray origin and direction
     vec3 ro    = camPt;
     vec3 rd    = normalize(camFw + uv.x * camRt + uv.y * camUp);
 
-    gSceneRot = rot2(gTime * PI * 2.0 / 30.0);
-    
-    gLightDirection.xz *= -rot2(camTheta);
-    
-    configMap();
     vec3 rgb = render(ro, rd);
-
 
     // Vignette from Ippokratis https://www.shadertoy.com/view/lsKSWR
     vec2 pq = XY / Res;   
